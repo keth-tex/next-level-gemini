@@ -2,6 +2,7 @@
 let chatObserver;
 let isRendering = false;
 let isObservingChats = false;
+let originalFolderState = new Map(); // <-- NEU: Zwischenspeicher
 
 let syncTimer = null;
 let revealTimer = null; // NEU: Separater Timer für das Aufdecken
@@ -26,6 +27,15 @@ async function prepareFoldersAndStartSync() {
 
     // 1. Hole die aktuelle Struktur
     let structure = await getFolderStructure();
+
+    // --- ÄNDERUNG START ---
+    // 1.5. Speichere den ursprünglichen Zustand, bevor er überschrieben wird
+    originalFolderState.clear(); // Sicherstellen, dass die Map leer ist
+    structure.forEach(folder => {
+        originalFolderState.set(folder.id, folder.isOpen);
+    });
+    console.log("Gemini Exporter: Ursprünglicher Ordner-Status zwischengespeichert.");
+    // --- ÄNDERUNG ENDE ---
     
     // 2. Modifiziere die Daten (User-Request)
     // Wir setzen alle auf 'false', da dies laut User
@@ -393,6 +403,31 @@ async function revealContainer() {
     if (hasChats || isEmpty) {
         console.log("Gemini Exporter: Mutations haben sich beruhigt. Führe finalen Sync aus und decke auf.");
         
+        // --- ÄNDERUNG START ---
+        // 1. Stelle den ursprünglichen 'isOpen'-Status wieder her
+        if (originalFolderState.size > 0) {
+            console.log("Gemini Exporter: Stelle ursprünglichen Ordner-Status wieder her...");
+            let structure = await getFolderStructure();
+            let changed = false;
+            
+            structure.forEach(folder => {
+                const originalState = originalFolderState.get(folder.id);
+                // Prüfe, ob der gespeicherte Zustand existiert UND
+                // ob er sich vom (aktuell 'false') Zustand im Storage unterscheidet.
+                if (originalState !== undefined && folder.isOpen !== originalState) {
+                    folder.isOpen = originalState;
+                    changed = true;
+                }
+            });
+            
+            // Speichere nur, wenn es Änderungen gab
+            if (changed) {
+                await chrome.storage.local.set({ 'folderStructure': structure });
+            }
+            originalFolderState.clear(); // Speicher leeren
+        }
+        // --- ÄNDERUNG ENDE ---
+
         // WICHTIG: Führe die Sortierung ein letztes Mal aus,
         // um den *finalen* Zustand zu sortieren, BEVOR es sichtbar wird.
         await syncFullListOrder(); 
