@@ -4,7 +4,7 @@ let mainObserver;
 const mainObserverConfig = {
   childList: true,
   subtree: true,
-  attributes: true 
+  attributes: false
 };
 
 // === KOMBINIERTE INJEKTIONS-LOGIK ===
