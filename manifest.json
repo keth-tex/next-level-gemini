@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Gemini LaTeX Exporter",
-  "version": "1.3",
-  "description": "Exportiert Gemini-Konversationen als .tex-Datei, basierend auf einem benutzerdefinierten Skript.",
+  "name": "Next Level Gemini",
+  "version": "1.0",
+  "description": "A chromium browser extension to improve Google Gemini",
   
   "permissions": [
     "downloads",
