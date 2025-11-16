@@ -118,20 +118,20 @@ function createFolderButton() {
     // 2. Erstellt das <button> Element
     const button = document.createElement('button');
     button.id = 'new-folder-button'; 
-    button.className = 'mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line';
+    button.className = 'mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line new-folder-button';
     button.setAttribute('type', 'button');
     button.setAttribute('aria-label', 'Neuer Ordner');
 
     // 3. Erstellt den Icon-Container
     const iconContainer = document.createElement('div');
-    iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start';
+    iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start new-folder-icon';
     
     // 4. Erstellt das <mat-icon> Element
     const icon = document.createElement('mat-icon');
-    icon.className = 'mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color';
+    icon.className = 'mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color new-folder-icon';
     icon.setAttribute('aria-hidden', 'true');
     icon.setAttribute('data-mat-icon-type', 'font');
-    icon.textContent = 'create_new_folder'; // <-- Ändern Sie dies bei Bedarf
+    icon.textContent = 'folder'; // <-- Ändern Sie dies bei Bedarf
     
     iconContainer.appendChild(icon);
 
@@ -585,7 +585,12 @@ function activateInlineEdit(nameSpan, folderId) {
     nameSpan.style.display = 'none';
     header.insertBefore(input, nameSpan.nextSibling);
     input.focus();
-    input.select();
+
+    // --- ÄNDERUNG HIER ---
+    // Statt input.select(); setzen wir die Einfügemarke ans Ende
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
+    // --- ENDE ÄNDERUNG ---
 
     const saveChanges = async () => {
         const newName = input.value.trim();
@@ -633,9 +638,9 @@ async function handleDeleteFolder(folderId) {
     if (folderIndex === -1 || structure[folderIndex].isDefault) return;
     
     const folder = structure[folderIndex];
-    if (!confirm(`Soll der Ordner "${folder.name}" wirklich gelöscht werden? Alle darin enthaltenen Chats werden in den "Chats"-Ordner verschoben.`)) {
-        return;
-    }
+    // if (!confirm(`Soll der Ordner "${folder.name}" wirklich gelöscht werden? Alle darin enthaltenen Chats werden in den "Chats"-Ordner verschoben.`)) {
+        // return;
+    // }
 
     const defaultFolder = structure.find(f => f.isDefault);
     if (!defaultFolder) {

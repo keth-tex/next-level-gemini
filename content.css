@@ -136,7 +136,7 @@ mat-drawer.mat-drawer-opened {
  
 /* Fügt einen Abstand nach unten hinzu, wie ihn auch "Gems" hat */
 #new-folder-button-wrapper {
-  margin-bottom: 8px;
+  padding-right: 24px !important;
 }
 
 /* * ENTFERNT: `.conversations-container.hidden-by-extension`, `.folder-container`,
@@ -206,6 +206,25 @@ mat-drawer.mat-drawer-opened {
   color: #5f6368;
   cursor: not-allowed;
   background: none;
+}
+
+/* Styling für das Inline-Bearbeitungsfeld der Ordner */
+.folder-name-input {
+    /* Text-Styling vom Elternelement erben (Schriftart, -größe) */
+    font: inherit;
+    /* Explizit die Textfarbe und das Gewicht des Ordnernamens übernehmen */
+    color: var(--gem-sys-color--on-surface);
+    font-weight: 500;
+    
+    /* Alle Browser-Standard-Styles für das Input-Feld entfernen */
+    border: none;
+    outline: none;
+    background: transparent;
+    
+    /* Layout anpassen */
+    padding: 0;
+    margin: 0;
+    width: 100%; /* Nimmt den verfügbaren Platz ein */
 }
 
 /* === 7. DRAG-AND-DROP-STYLING === */
@@ -301,4 +320,34 @@ mat-drawer.mat-drawer-opened {
 
 .folder-header.is-open .folder-toggle-icon {
   transform: rotate(90deg) !important;
+}
+
+/* === 10. NEUER ORDNER === */
+
+.new-folder-button {
+    height: 40px !important;
+    border-radius: 30px !important;
+    margin-left: 12px !important;
+    margin-right: 12px !important;
+    padding-right: 0px !important;
+}
+
+/* NEU: Verhindert das Ändern der Icon-Farbe bei Hover oder Focus */
+#new-folder-button:is(:hover, :focus) .mat-icon {
+    /* * Setzt die Farbe des Icons explizit auf den Standard-Farbton
+     * der Sidebar-Icons (on-surface-variant).
+     * !important ist leider notwendig, um die :hover-Regeln
+     * von Gemini zu überschreiben.
+     */
+    color: var(--gem-sys-color--on-surface-variant) !important;
+}
+
+.icon-container {
+    margin-left: 14px !important;
+    width: 20px !important;
+    line-height: 24px !important;
+}
+
+.new-folder-icon {
+    height: 21px !important;
 }

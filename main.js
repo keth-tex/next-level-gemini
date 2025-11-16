@@ -55,16 +55,17 @@ function injectionLogic() {
 // 3. "Neuer Ordner"-Button, Ordner-Header UND Start des Prozesses
   try {
     const conversationContainer = document.querySelector('.conversations-container');
+    const loadingContentSpinnerContainer = document.querySelector('.loading-content-spinner-container');
     
     if (conversationContainer) {
       const parent = conversationContainer.parentElement;
 
       // --- MODIFIZIERUNG HIER ---
       // Prüft auf die neue Wrapper-ID statt auf die Button-ID
-      if (!document.getElementById('new-folder-button-wrapper')) {
+      if (!document.getElementById('new-folder-button-wrapper') && loadingContentSpinnerContainer) {
       // --- ENDE MODIFIZIERUNG ---
         console.log("Gemini Exporter: Injiziere 'Neuer Ordner'-Button.");
-        parent.insertBefore(createFolderButton(), conversationContainer);
+        loadingContentSpinnerContainer.after(createFolderButton());
       }
       
       if (!isObservingChats) {
