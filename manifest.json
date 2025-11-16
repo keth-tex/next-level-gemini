@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini LaTeX Exporter",
+  "version": "1.3",
+  "description": "Exportiert Gemini-Konversationen als .tex-Datei, basierend auf einem benutzerdefinierten Skript.",
+  
+  "permissions": [
+    "downloads",
+    "storage"
+  ],
+  
+  "host_permissions": [
+    "https://gemini.google.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": [
+        "turndown.js",
+        "turndown-plugin-gfm.js",
+        "fouc-fix.js",
+        "feature-export.js",
+        "feature-resizer.js",
+        "feature-folders.js",
+        "main.js"
+      ],
+      "css": ["content.css"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "icons": {
+    "128": "icon.png" 
+  }
+}

@@ -1,0 +1,304 @@
+/* === 1. TOOLTIP FÜR EXPORT-BUTTON === */
+#gemini-tex-export-button-wrapper {
+  position: relative;
+}
+
+.gemini-tex-tooltip {
+  word-break: normal;
+  overflow-wrap: anywhere;
+  padding: 4px 8px;
+  min-width: 40px;
+  max-width: 200px;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-align: center;
+  background-color: var(--mat-tooltip-container-color, var(--mat-sys-inverse-surface));
+  color: var(--mat-tooltip-supporting-text-color, var(--mat-sys-inverse-on-surface));
+  border-radius: var(--mat-tooltip-container-shape, var(--mat-sys-corner-extra-small));
+  font-family: var(--mat-tooltip-supporting-text-font, var(--mat-sys-body-small-font));
+  font-size: var(--mat-tooltip-supporting-text-size, var(--mat-sys-body-small-size));
+  font-weight: var(--mat-tooltip-supporting-text-weight, var(--mat-sys-body-small-weight));
+  line-height: var(--mat-tooltip-supporting-text-line-height, var(--mat-sys-body-small-line-height));
+  letter-spacing: var(--mat-tooltip-supporting-text-tracking, var(--mat-sys-body-small-tracking));
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-top: 10px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) scale(0.8);
+  transition: opacity 150ms cubic-bezier(0, 0, 0.2, 1),
+              transform 150ms cubic-bezier(0, 0, 0.2, 1),
+              visibility 150ms cubic-bezier(0, 0, 0.2, 1);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#gemini-tex-export-button-wrapper:hover .gemini-tex-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1);
+}
+
+/* === 2. SIDEBAR-RESIZER === */
+@keyframes change-cursor {
+  from {
+    cursor: default;
+  }
+  to {
+    cursor: col-resize;
+  }
+}
+
+#gemini-sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -50px;
+  bottom: 0;
+  width: 50px;
+  z-index: 99;
+  cursor: default;
+}
+
+#gemini-sidebar-resizer:hover {
+  animation: change-cursor 0s linear 250ms forwards;
+}
+
+#gemini-sidebar-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, .1), rgba(255, 255, 255, .05)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10' width='12' height='10'%3E%3Cpolygon points='5,0 0,5 5,10' fill='%23666'/%3E%3Cpolygon points='7,0 12,5 7,10' fill='%23666'/%3E%3C/svg%3E");
+  background-size:
+    auto,
+    24px 20px;
+  background-position:
+    center,
+    center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 500ms ease 0s;
+}
+
+#gemini-sidebar-resizer:hover::before {
+  opacity: 1;
+  transition: opacity 500ms ease 250ms;
+}
+
+mat-drawer.mat-drawer-opened {
+  transition: none !important;
+}
+
+.gemini-resizing body {
+  user-select: none;
+}
+
+/* === 3. SCROLLBAR-STYLING === */
+@media (pointer: fine) {
+    ::-webkit-scrollbar, ::-webkit-scrollbar-corner {
+        height: 24px !important;
+        width: 24px !important;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: content-box var(--gem-sys-color--surface-container-highest) !important;
+        border: 2px solid transparent;
+        border-radius: 8px !important;
+        min-height: 48px;
+        min-width: 48px;
+    }
+
+    @supports not (selector(::-webkit-scrollbar)) {
+        * {
+            scrollbar-width: auto !important;
+            scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important;
+        }
+    }
+}
+
+/* * ENTFERNT: Alle `order`-Regeln für `conversations-list`, `title-container`,
+ * `#custom-folder-list-container` usw. (Zeilen 119-138) waren veraltet
+ * und passten nicht zur JS-Implementierung, die alles in
+ * `.conversations-container` einfügt.
+ */
+
+/* === 4. "NEUER ORDNER"-BUTTON === */
+/*
+ * Das Styling für #new-folder-button wurde entfernt.
+ * Es wird jetzt vollständig von den Gemini-Klassen 
+ * (mat-mdc-list-item etc.) übernommen.
+ */
+ 
+/* Fügt einen Abstand nach unten hinzu, wie ihn auch "Gems" hat */
+#new-folder-button-wrapper {
+  margin-bottom: 8px;
+}
+
+/* * ENTFERNT: `.conversations-container.hidden-by-extension`, `.folder-container`,
+ * `.folder-content` und `.folder-content-empty` (Zeilen 167-180, 216-234).
+ * Diese Regeln waren Teil eines alten, ungenutzten `display: none`-Systems,
+ * das die Grid-Animation blockiert hat.
+ */
+
+/* === 5. ORDNER-HEADER-STYLING === */
+.folder-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  position: relative; /* Nötig für .folder-actions */
+}
+
+.folder-header:hover {
+  background: var(--gem-sys-color--surface-container-low);
+}
+
+.folder-header mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.folder-name {
+  flex-grow: 1;
+  font-weight: 500;
+  color: var(--gem-sys-color--on-surface);
+}
+
+/* === 6. ORDNER-AKTIONEN (RENAME, DELETE) === */
+.folder-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  pointer-events: auto;
+  background: #1e1f20;
+  border-radius: 4px;
+  z-index: 10;
+}
+
+.folder-header:hover .folder-actions {
+  display: flex;
+}
+
+.folder-actions .action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bdc1c6;
+  padding: 4px;
+  margin: 0 2px;
+  border-radius: 50%;
+}
+.folder-actions .action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.folder-actions .action-btn:disabled {
+  color: #5f6368;
+  cursor: not-allowed;
+  background: none;
+}
+
+/* === 7. DRAG-AND-DROP-STYLING === */
+.conversation-items-container.gemini-dragging {
+  opacity: 0.5;
+}
+
+.folder-header.gemini-drag-over {
+  border: none !important;
+  outline: none !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+.conversation-items-container.gemini-chat-drag-over {
+  border: none !important;
+  outline: none !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+}
+
+/* D&D Flackern-Fix (verhindert Events auf Kind-Elementen) */
+.gemini-chat-is-dragging .folder-header > *,
+.gemini-chat-is-dragging .conversation-items-container > * {
+  pointer-events: none !important;
+}
+
+/* * ENTFERNT: Veraltete D&D-Fixes (Zeilen 252-256),
+ * die `pointer-events: none` dauerhaft auf den Header gesetzt haben.
+ */
+
+/* === 8. GRID-ANIMATION (AGGRESSIVER FIX) === */
+
+/* 1. Base State (Unchanged, already correct) */
+.conversation-items-container {
+  display: grid; /* Bestätigt, dass dies funktioniert */
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s ease-out,
+              opacity 0.2s ease-in-out 0.1s;
+  opacity: 1;
+  overflow: hidden;
+}
+
+/* 2. Base Child State */
+.conversation-items-container > * {
+   /* Wir animieren jetzt ALLES, um den Kollaps zu erzwingen */
+   transition: opacity 0.2s ease-in-out,
+               visibility 0.2s,
+               height 0.3s ease-out,
+               padding 0.3s ease-out,
+               margin 0.3s ease-out;
+   visibility: visible;
+   opacity: 1;
+   overflow: hidden; 
+   min-height: 0; /* Der ursprüngliche (aber unzureichende) Fix */
+}
+
+/* 3. Closed State (Spezifischerer Selektor) */
+/* Wir verwenden .conversation-items-container.chat-item-rolled-up 
+   anstatt nur .chat-item-rolled-up */
+.conversation-items-container.chat-item-rolled-up {
+  grid-template-rows: 0fr !important;
+  opacity: 0 !important;
+  transition-delay: 0s;
+  pointer-events: none !important;
+}
+
+/* 4. Closed Child State (DER EIGENTLICHE FIX) */
+/* Wir zwingen jetzt den *Inhalt* auf Höhe 0, 
+   anstatt uns auf min-height: 0 zu verlassen. */
+.conversation-items-container.chat-item-rolled-up > * {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    transition-delay: 0s;
+    
+    /* ERZWINGE DEN KOLLAPS DES INHALTS */
+    height: 0 !important;
+    min-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* === 9. PFEIL-ANIMATION (KONSOLIDIERT) === */
+/* * KONSOLIDIERT: Doppelte Definitionen (Zeilen 200-214 und 306-315)
+ * wurden zu diesem einen Block zusammengefasst.
+ */
+.folder-header .folder-toggle-icon {
+  transition: transform 0.3s ease !important;
+  transform-origin: center !important;
+}
+
+.folder-header.is-open .folder-toggle-icon {
+  transform: rotate(90deg) !important;
+}
