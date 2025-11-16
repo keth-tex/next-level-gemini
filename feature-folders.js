@@ -493,6 +493,14 @@ async function syncFullListOrder() {
         if (headerEl) {
             headerEl.style.order = baseOrder;
 
+            // Setzt den 'is-open'-Status für das Icon
+            // basierend auf den wiederhergestellten Daten.
+            if (folder.isOpen) {
+                headerEl.classList.add('is-open');
+            } else {
+                headerEl.classList.remove('is-open');
+            }
+
             // Aktualisiere Button-Status
             if (!folder.isDefault) {
                 const upBtn = headerEl.querySelector('[data-action="move-up"]');
