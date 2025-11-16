@@ -701,15 +701,19 @@ async function handleMoveFolder(folderId, direction) {
 // === DRAG-AND-DROP HANDLER ===
 
 function handleDragStartChat(event) {
-  // --- (Unverändert) ---
     const chatEl = event.currentTarget;
-// ... (Restlicher Code für handleDragStartChat) ...    
-
-    // --- NEU ---
-    // Setzt eine globale Klasse auf das <html>-Element
-    document.documentElement.classList.add('gemini-chat-is-dragging');
+    
+    // --- NEU: Animationen deaktivieren ---
+    // Verhindert den "Aufblitz"-Glitch beim Droppen,
+    // indem die Zuklapp-Animation (grid-template-rows) deaktiviert wird.
+    chatEl.classList.add('gemini-dnd-no-transition');
+    chatEl.querySelectorAll('*').forEach(child => {
+        child.classList.add('gemini-dnd-no-transition');
+    });
     // --- ENDE NEU ---
 
+    document.documentElement.classList.add('gemini-chat-is-dragging');
+    
     event.dataTransfer.setData("text/gemini-chat-id", chatEl.dataset.chatId);
     event.dataTransfer.effectAllowed = "move";
     
@@ -718,15 +722,23 @@ function handleDragStartChat(event) {
 }
 
 function handleDragEndChat(event) {
-    // --- NEU ---
-    // Entfernt die globale Klasse, sobald der Drag-Vorgang endet (beim Loslassen)
+    // Globale Klasse entfernen
     document.documentElement.classList.remove('gemini-chat-is-dragging');
-    // --- ENDE NEU ---
 
-  // --- (Unverändert) ---
-    event.currentTarget.classList.remove('gemini-dragging');
-// ... (Restlicher Code für handleDragEndChat) ...
+    // Gezogenes Element aufräumen
+    const chatEl = event.currentTarget;
+    if (chatEl) { // Sicherstellen, dass das Element noch existiert
+        chatEl.classList.remove('gemini-dragging');
+        
+        // --- NEU: Animationen wieder aktivieren ---
+        chatEl.classList.remove('gemini-dnd-no-transition');
+        chatEl.querySelectorAll('*').forEach(child => {
+        child.classList.remove('gemini-dnd-no-transition');
+    });
+        // --- ENDE NEU ---
+    }
     
+    // Alle Drop-Highlights entfernen
     document.querySelectorAll('.folder-header.gemini-drag-over').forEach(el => {
         el.classList.remove('gemini-drag-over');
     });
@@ -753,19 +765,39 @@ function handleDragLeaveFolder(event) {
 }
 
 async function handleDropOnFolder(event) {
-  // --- (Unverändert) ---
     event.preventDefault();
-// ... (Restlicher Code für handleDropOnFolder) ...
-    event.currentTarget.classList.remove('gemini-drag-over');
+    event.stopPropagation(); // (Dieser Teil von letztem Mal ist weiterhin korrekt)
+    
+    const folderHeaderEl = event.currentTarget; // Der Ordner-Header, auf den wir droppen
+    folderHeaderEl.classList.remove('gemini-drag-over');
     
     const chatId = event.dataTransfer.getData("text/gemini-chat-id");
-    const newFolderId = event.currentTarget.dataset.folderId;
+    const newFolderId = folderHeaderEl.dataset.folderId;
     
     if (!chatId || !newFolderId) {
         console.error("Gemini Exporter: Drop-Fehler, chatId or newFolderId fehlt.");
         return;
     }
+
+    // --- NEUER FIX (Basierend auf deiner Hypothese) ---
+    // Wir setzen den Status *sofort*, noch vor der 'await'-Logik,
+    // um den Glitch zu verhindern.
+
+    // 1. Finde das Chat-Element, das wir gerade ziehen
+    const chatEl = document.querySelector(`.conversation-items-container[data-chat-id="${chatId}"]`);
     
+    // 2. Prüfe, ob der Ziel-Ordner (auf den wir droppen) geschlossen ist
+    const isTargetFolderClosed = !folderHeaderEl.classList.contains('is-open');
+
+    // 3. Wenn ja, wende den "geschlossen"-Status SOFORT auf den Chat an
+    if (chatEl && isTargetFolderClosed) {
+        console.log("Gemini Exporter: Wende 'rolled-up' präventiv an.");
+        chatEl.classList.add('chat-item-rolled-up');
+    }
+    // --- ENDE NEUER FIX ---
+    
+    // 4. Starte die normale Speicher/Sortier-Logik (die die Klasse
+    //    später einfach noch einmal setzen wird, was aber egal ist)
     await moveChatToFolder(chatId, newFolderId);
 }
 

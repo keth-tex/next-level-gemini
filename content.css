@@ -318,6 +318,11 @@ mat-drawer.mat-drawer-opened {
     margin-bottom: 0 !important;
 }
 
+/* Deaktiviert die Animationen für das Zuklappen während D&D */
+.gemini-dnd-no-transition {
+    transition: none !important;
+}
+
 /* === 9. PFEIL-ANIMATION (KONSOLIDIERT) === */
 /* * KONSOLIDIERT: Doppelte Definitionen (Zeilen 200-214 und 306-315)
  * wurden zu diesem einen Block zusammengefasst.
@@ -373,8 +378,8 @@ mat-drawer.mat-drawer-opened {
 .user-query-bubble-with-background {
     padding-top: 24px !important;
     padding-bottom: 23px !important;
-    padding-left: 40px !important;
-    padding-right: 24px !important;
+    padding-left: 34px !important;
+    padding-right: 30px !important;
 }
 
 input-area-v2 {
