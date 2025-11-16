@@ -67,7 +67,7 @@ function injectionLogic() {
         parent.insertBefore(createFolderButton(), conversationContainer);
       }
       
-      if (!isObservingChats) { // 'isObservingChats' ist in feature-folders.js
+      if (!isObservingChats) {
           isObservingChats = true;
           
           console.log("Gemini Exporter: Setze Container auf FLEX und starte Observer.");
@@ -75,7 +75,8 @@ function injectionLogic() {
           conversationContainer.style.display = 'flex';
           conversationContainer.style.flexDirection = 'column';
 
-          prepareFoldersAndStartSync();
+          // Starte die Kette: Ordner schließen, Header rendern, Observer starten
+          prepareFoldersAndStartSync(); // Aus feature-folders.js
 
         const bardSidenav = document.querySelector('bard-sidenav');
 
@@ -143,15 +144,16 @@ function injectionLogic() {
   }
 }
 
-// Startet den Observer
-window.addEventListener('DOMContentLoaded', (event) => {
-    
-    if (!document.body) {
-        console.error("Gemini Exporter: document.body not found at DOMContentLoaded.");
-        return;
-    }
-    
+// Startet den Observer SOFORT, ohne auf DOMContentLoaded zu warten.
+if (document.documentElement) {
     mainObserver = new MutationObserver(injectionLogic);
-    mainObserver.observe(document.body, mainObserverConfig);
+    
+    // Wir beobachten document.documentElement (<html>),
+    // da document.body bei document_start evtl. noch nicht existiert.
+    mainObserver.observe(document.documentElement, mainObserverConfig);
+    
+    // Führe eine erste Prüfung durch, falls Teile schon da sind
     injectionLogic();
-});
+} else {
+    console.error("Gemini Exporter: Konnte document.documentElement nicht finden, um Observer zu starten.");
+}

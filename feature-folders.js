@@ -4,9 +4,7 @@ let isRendering = false;
 let isObservingChats = false;
 let originalFolderState = new Map(); // <-- NEU: Zwischenspeicher
 
-let syncTimer = null;
 let revealTimer = null; // NEU: Separater Timer für das Aufdecken
-const SYNC_DEBOUNCE_TIME = 150; 
 const REVEAL_SETTLE_TIME = 500; // NEU: Längere "Ruhe"-Zeit, um alle Batches abzuwarten
 
 let isInitialSortComplete = false;
@@ -17,29 +15,21 @@ const chatObserverConfig = {
     characterData: false
 };
 
-// (NBSP-Anweisung wird befolgt)
-/**
- * NEU: Setzt (wie vom User gewünscht) alle Ordner im Storage
- * auf "geschlossen" und startet DANN den "Live-Sync".
- */
+// [Auszug aus feature-folders.js]
 async function prepareFoldersAndStartSync() {
     console.log("Gemini Exporter: Setze alle Ordner auf 'isOpen: false'...");
 
     // 1. Hole die aktuelle Struktur
     let structure = await getFolderStructure();
-
-    // --- ÄNDERUNG START ---
-    // 1.5. Speichere den ursprünglichen Zustand, bevor er überschrieben wird
-    originalFolderState.clear(); // Sicherstellen, dass die Map leer ist
+    
+    // 1.5. Speichere den ursprünglichen Zustand
+    originalFolderState.clear(); 
     structure.forEach(folder => {
         originalFolderState.set(folder.id, folder.isOpen);
     });
     console.log("Gemini Exporter: Ursprünglicher Ordner-Status zwischengespeichert.");
-    // --- ÄNDERUNG ENDE ---
-    
-    // 2. Modifiziere die Daten (User-Request)
-    // Wir setzen alle auf 'false', da dies laut User
-    // der robuste Lade-Zustand ist.
+
+    // 2. Modifiziere die Daten
     structure.forEach(folder => {
         folder.isOpen = false;
     });
@@ -47,23 +37,22 @@ async function prepareFoldersAndStartSync() {
     // 3. Speichere die modifizierte Struktur zurück
     await chrome.storage.local.set({ 'folderStructure': structure });
     
-    console.log("Gemini Exporter: 'Close-All' abgeschlossen. Starte 'Live-Sync'...");
+    console.log("Gemini Exporter: 'Close-All' abgeschlossen. Rendere Header & starte Observer...");
 
-    // 4. JETZT starte den normalen "Live-Sync"-Prozess
-
-    // a. Rendere die (jetzt alle geschlossenen) Header
+    // 4. a. Rendere die (jetzt alle geschlossenen) Header
     renderInitialFolders(); 
     
-    // b. Starte den "Live" Observer
+    // 4. b. Starte den "Live" Observer (Wieder hier)
     const conversationContainer = document.querySelector('.conversations-container');
     if (conversationContainer) {
         chatObserver = new MutationObserver(handleChatListMutations);
         chatObserver.observe(conversationContainer, chatObserverConfig);
     }
     
-    // c. Starte den "Live" Sync
-    // (Wird sofort die ersten 15 Chats sortieren und einklappen)
-    triggerDebouncedSync();
+    // 4. c. Starte die ERSTE "Live" Sortierung
+    // (ruft syncFullListOrder direkt statt triggerDebouncedSync)
+    console.log("Gemini Exporter: Führe erste Sortierung aus.");
+    syncFullListOrder();
 }
 
 // === ORDNER-FUNKTIONEN (DATEN) ===
@@ -464,27 +453,13 @@ async function revealContainer() {
     }
 }
 
-/**
- * --- MODIFIZIERT: Debouncer-Auslöser ---
- * Löst NUR noch den Sortier-Timer aus.
- */
-function triggerDebouncedSync() {
-    if (syncTimer) clearTimeout(syncTimer);
-    
-    syncTimer = setTimeout(() => {
-        console.log("Gemini Exporter: Debounced sync (Sortierung) triggered.");
-        syncFullListOrder();
-        syncTimer = null;
-    }, SYNC_DEBOUNCE_TIME);
-}
-
-/**
- * --- MODIFIZIERT ---
- * Ruft *nur* den Debouncer für die Sortierung auf.
- * Der Reveal-Timer wird jetzt vom globalen mainObserver in main.js gesteuert.
- */
 function handleChatListMutations(mutations) {
-    triggerDebouncedSync();
+    // triggerDebouncedSync(); // <-- ALT
+    
+    // NEU: Rufe die Sortierung sofort auf.
+    // Die 'isRendering'-Sperre in syncFullListOrder
+    // verhindert Überlappungen.
+    syncFullListOrder();
 }
 
 async function syncFullListOrder() {
