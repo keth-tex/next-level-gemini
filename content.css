@@ -337,8 +337,136 @@ mat-drawer.mat-drawer-opened {
   height: 21px !important;
 }
 
-/* === 11. CONVERSATION STYLING === */
-.conversation {
+/* === 11. TABLE OF CONTENTS (TOC) === */
+
+/* Main Container for the TOC */
+#gemini-toc-container {
+  width: 480px;
+  min-width: 260px;
+  
+  /* Prevent the TOC from being crushed to 0 width by the flex layout */
+  flex-shrink: 0; 
+  
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  
+  /* Visuals matching the sidebar background */
+  background-color: var(--gem-sys-color--surface-container);
+  /* No borders as requested */
+}
+
+/* Header "Inhalt" */
+.gemini-toc-header {
+  /* Padding and Margins to align with sidebar items */
+  padding: 12px 16px;
+  margin-top: 15px; 
+  /* margin-bottom: 2px; */
+  padding-left: 24px;
+  
+  /* Typography matching .folder-name */
+  font-family: var(--mat-list-list-item-label-text-font);
+  font-size: var(--mat-list-list-item-label-text-size);
+  font-weight: 500;
+  color: #dde2e9; /* Explicit color from folder names */
+  
+  background-color: transparent;
+}
+
+.gemini-toc-list {
+  padding: 0;
+  margin: 0;
+  overflow-y: scroll; /* Allow scrolling within the TOC */
+  flex-grow: 1;
+  display: block;
+  padding-top: 0px !important;
+  padding-bottom: 8px !important;
+  padding-left: 12px !important;
+  padding-right: 2px !important;
+}
+
+/* Custom Scrollbar for the TOC list to look unobtrusive
+.gemini-toc-list::-webkit-scrollbar {
+  width: 6px;
+}
+.gemini-toc-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+} */
+
+/* * TOC ITEMS (.gemini-toc-item)
+ * Styled exactly like "New Folder" buttons but with modifications for 
+ * text wrapping and no hover color change.
+ */
+.gemini-toc-item {
+  /* Allow height to grow with text (overriding fixed 40px from New Folder) */
+  height: auto !important;
+  min-height: 40px !important;
+  
+  /* Ensure padding and border are included in width calculation */
+  box-sizing: border-box !important;
+
+  /* FIX: Added padding-right to prevent text clipping */
+  padding-right: 12px !important;
+  padding-left: 12px !important; 
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  
+  /* Text Color: Forced to stay variant (greyish) */
+  color: var(--gem-sys-color--on-surface-variant) !important;
+  
+  /* Reset button defaults */
+  background: transparent;
+  border: none;
+  /* width: calc(100% - 24px) !important; Account for margins */
+  text-align: left;
+  cursor: pointer;
+  
+  /* Layout overrides to allow text wrapping */
+  display: flex !important;
+  align-items: flex-start !important; /* Align text to top if multi-line */
+  white-space: normal !important;     /* Allow wrapping */
+}
+
+/* Hover Effect */
+.gemini-toc-item:hover {
+  /* Only change background, NOT text color */
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Active State */
+.gemini-toc-item.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  
+  /* Only change text color to bright white when ACTIVE */
+  color: var(--gem-sys-color--on-surface) !important;
+}
+
+.gemini-toc-item.active .mdc-list-item__primary-text {
+   color: var(--gem-sys-color--on-surface) !important;
+   font-weight: 500;
+}
+
+/* * Inner Text Span Styling 
+ * Ensures the text wraps correctly inside the button structure.
+ */
+.gemini-toc-item .mdc-list-item__primary-text {
+  /* Ensure color inheritance */
+  color: var(--gem-sys-color--on-surface-variant);
+  
+  /* Removed 'text-overflow: clip' to avoid cutting letters off */
+  white-space: pre-wrap !important;
+  overflow: visible !important;
+  
+  display: block;
+  width: 100%;
+  line-height: 1.4 !important; /* Better readability for multi-line */
+}
+
+/* === 12. CONVERSATION STYLING === */
+.conversation, .mat-mdc-list-item {
   border-radius: 8px !important;
 }
 

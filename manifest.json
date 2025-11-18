@@ -26,6 +26,7 @@
         "fouc-fix.js",
         "feature-export.js",
         "feature-resizer.js",
+        "feature-toc.js",
         "folders-data.js",
         "folders-ui.js",
         "folders-dnd.js",

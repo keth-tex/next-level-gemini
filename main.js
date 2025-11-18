@@ -133,9 +133,19 @@ function injectionLogic() {
   } catch (e) {
     console.error("Error injecting folder button:", e);
   }
+
+  // 4. Table of Contents (NEW)
+  try {
+    // We check for the CONTAINER now, as we want to insert INTO it
+    if (document.querySelector('bard-sidenav-container')) {
+        initTOC();
+    }
+  } catch (e) {
+    console.error("Error injecting TOC:", e);
+  }
 }
 
-// Start Observer IMMEDIATELY, without waiting for DOMContentLoaded.
+// Start Observer IMMEDIATELY
 if (document.documentElement) {
   mainObserver = new MutationObserver(injectionLogic);
 
