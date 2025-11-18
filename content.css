@@ -1,4 +1,4 @@
-/* === 1. TOOLTIP FÜR EXPORT-BUTTON === */
+/* === 1. EXPORT BUTTON TOOLTIP === */
 #gemini-tex-export-button-wrapper {
   position: relative;
 }
@@ -40,7 +40,7 @@
   transform: translateX(-50%) scale(1);
 }
 
-/* === 2. SIDEBAR-RESIZER === */
+/* === 2. SIDEBAR RESIZER === */
 @keyframes change-cursor {
   from {
     cursor: default;
@@ -98,54 +98,36 @@ mat-drawer.mat-drawer-opened {
   user-select: none;
 }
 
-/* === 3. SCROLLBAR-STYLING === */
+/* === 3. SCROLLBAR STYLING === */
 @media (pointer: fine) {
-    ::-webkit-scrollbar, ::-webkit-scrollbar-corner {
-        height: 24px !important;
-        width: 24px !important;
-    }
+  ::-webkit-scrollbar, ::-webkit-scrollbar-corner {
+    height: 24px !important;
+    width: 24px !important;
+  }
 
-    ::-webkit-scrollbar-thumb {
-        background: content-box var(--gem-sys-color--surface-container-highest) !important;
-        border: 2px solid transparent;
-        border-radius: 8px !important;
-        min-height: 48px;
-        min-width: 48px;
-    }
+  ::-webkit-scrollbar-thumb {
+    background: content-box var(--gem-sys-color--surface-container-highest) !important;
+    border: 2px solid transparent;
+    border-radius: 8px !important;
+    min-height: 48px;
+    min-width: 48px;
+  }
 
-    @supports not (selector(::-webkit-scrollbar)) {
-        * {
-            scrollbar-width: auto !important;
-            scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important;
-        }
+  @supports not (selector(::-webkit-scrollbar)) {
+    * {
+      scrollbar-width: auto !important;
+      scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important;
     }
+  }
 }
 
-/* * ENTFERNT: Alle `order`-Regeln für `conversations-list`, `title-container`,
- * `#custom-folder-list-container` usw. (Zeilen 119-138) waren veraltet
- * und passten nicht zur JS-Implementierung, die alles in
- * `.conversations-container` einfügt.
- */
-
-/* === 4. "NEUER ORDNER"-BUTTON === */
-/*
- * Das Styling für #new-folder-button wurde entfernt.
- * Es wird jetzt vollständig von den Gemini-Klassen 
- * (mat-mdc-list-item etc.) übernommen.
- */
- 
-/* Fügt einen Abstand nach unten hinzu, wie ihn auch "Gems" hat */
+/* === 4. "NEW FOLDER" BUTTON === */
+/* Adds bottom padding similar to "Gems" */
 #new-folder-button-wrapper {
   padding-right: 24px !important;
 }
 
-/* * ENTFERNT: `.conversations-container.hidden-by-extension`, `.folder-container`,
- * `.folder-content` und `.folder-content-empty` (Zeilen 167-180, 216-234).
- * Diese Regeln waren Teil eines alten, ungenutzten `display: none`-Systems,
- * das die Grid-Animation blockiert hat.
- */
-
-/* === 5. ORDNER-HEADER-STYLING === */
+/* === 5. FOLDER HEADER STYLING === */
 .folder-header {
   display: flex;
   align-items: center;
@@ -153,7 +135,7 @@ mat-drawer.mat-drawer-opened {
   padding: 12px 16px;
   cursor: pointer;
   user-select: none;
-  position: relative; /* Nötig für .folder-actions */
+  position: relative; /* Needed for .folder-actions */
   font-family: var(--mat-list-list-item-label-text-font);
   background: #333;
   margin-top: 12px;
@@ -173,14 +155,12 @@ mat-drawer.mat-drawer-opened {
 
 .folder-name {
   flex-grow: 1;
-  /* font-size: var(--mat-list-list-item-label-text-size); */
   font-size: var(--mat-list-list-item-label-text-size);
   font-weight: 500;
-  /* color: var(--gem-sys-color--on-surface-variant); */
   color: #dde2e9;
 }
 
-/* === 6. ORDNER-AKTIONEN (RENAME, DELETE) === */
+/* === 6. FOLDER ACTIONS (RENAME, DELETE) === */
 .folder-actions {
   position: absolute;
   right: 8px;
@@ -206,6 +186,7 @@ mat-drawer.mat-drawer-opened {
   margin: 0 2px;
   border-radius: 50%;
 }
+
 .folder-actions .action-btn:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
@@ -216,27 +197,27 @@ mat-drawer.mat-drawer-opened {
   background: none;
 }
 
-/* Styling für das Inline-Bearbeitungsfeld der Ordner */
+/* Styling for the inline folder edit input */
 .folder-name-input {
-    /* Text-Styling vom Elternelement erben (Schriftart, -größe) */
-    font: inherit;
-    /* Explizit die Textfarbe und das Gewicht des Ordnernamens übernehmen */
-    color: var(--gem-sys-color--on-surface-variant);
-    font-weight: 500;
-    
-    /* Alle Browser-Standard-Styles für das Input-Feld entfernen */
-    border: none;
-    outline: none;
-    background: transparent;
-    
-    /* Layout anpassen */
-    padding: 0;
-    margin: 0;
-    flex-grow: 1;
-    min-width: 0;
+  /* Inherit text styling from parent (font, size) */
+  font: inherit;
+  /* Explicitly adopt text color and weight of folder name */
+  color: var(--gem-sys-color--on-surface-variant);
+  font-weight: 500;
+
+  /* Remove all browser default input styles */
+  border: none;
+  outline: none;
+  background: transparent;
+
+  /* Adjust layout */
+  padding: 0;
+  margin: 0;
+  flex-grow: 1;
+  min-width: 0;
 }
 
-/* === 7. DRAG-AND-DROP-STYLING === */
+/* === 7. DRAG AND DROP STYLING === */
 .conversation-items-container.gemini-dragging {
   opacity: 0.5;
 }
@@ -255,21 +236,17 @@ mat-drawer.mat-drawer-opened {
   border-radius: 8px !important;
 }
 
-/* D&D Flackern-Fix (verhindert Events auf Kind-Elementen) */
+/* D&D flicker fix (prevents events on child elements) */
 .gemini-chat-is-dragging .folder-header > *,
 .gemini-chat-is-dragging .conversation-items-container > * {
   pointer-events: none !important;
 }
 
-/* * ENTFERNT: Veraltete D&D-Fixes (Zeilen 252-256),
- * die `pointer-events: none` dauerhaft auf den Header gesetzt haben.
- */
+/* === 8. GRID ANIMATION (AGGRESSIVE FIX) === */
 
-/* === 8. GRID-ANIMATION (AGGRESSIVER FIX) === */
-
-/* 1. Base State (Unchanged, already correct) */
+/* 1. Base State */
 .conversation-items-container {
-  display: grid; /* Bestätigt, dass dies funktioniert */
+  display: grid; /* Confirms this works */
   grid-template-rows: 1fr;
   transition: grid-template-rows 0.3s ease-out,
               opacity 0.2s ease-in-out 0.1s;
@@ -279,21 +256,19 @@ mat-drawer.mat-drawer-opened {
 
 /* 2. Base Child State */
 .conversation-items-container > * {
-   /* Wir animieren jetzt ALLES, um den Kollaps zu erzwingen */
-   transition: opacity 0.2s ease-in-out,
-               visibility 0.2s,
-               height 0.3s ease-out,
-               padding 0.3s ease-out,
-               margin 0.3s ease-out;
-   visibility: visible;
-   opacity: 1;
-   overflow: hidden; 
-   min-height: 0; /* Der ursprüngliche (aber unzureichende) Fix */
+  /* We animate EVERYTHING to force collapse */
+  transition: opacity 0.2s ease-in-out,
+              visibility 0.2s,
+              height 0.3s ease-out,
+              padding 0.3s ease-out,
+              margin 0.3s ease-out;
+  visibility: visible;
+  opacity: 1;
+  overflow: hidden;
+  min-height: 0; /* Original (insufficient) fix */
 }
 
-/* 3. Closed State (Spezifischerer Selektor) */
-/* Wir verwenden .conversation-items-container.chat-item-rolled-up 
-   anstatt nur .chat-item-rolled-up */
+/* 3. Closed State (More specific selector) */
 .conversation-items-container.chat-item-rolled-up {
   grid-template-rows: 0fr !important;
   opacity: 0 !important;
@@ -301,32 +276,28 @@ mat-drawer.mat-drawer-opened {
   pointer-events: none !important;
 }
 
-/* 4. Closed Child State (DER EIGENTLICHE FIX) */
-/* Wir zwingen jetzt den *Inhalt* auf Höhe 0, 
-   anstatt uns auf min-height: 0 zu verlassen. */
+/* 4. Closed Child State (THE ACTUAL FIX) */
+/* Force content height to 0 instead of relying on min-height */
 .conversation-items-container.chat-item-rolled-up > * {
-    visibility: hidden !important;
-    opacity: 0 !important;
-    transition-delay: 0s;
-    
-    /* ERZWINGE DEN KOLLAPS DES INHALTS */
-    height: 0 !important;
-    min-height: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  transition-delay: 0s;
+
+  /* FORCE CONTENT COLLAPSE */
+  height: 0 !important;
+  min-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
-/* Deaktiviert die Animationen für das Zuklappen während D&D */
+/* Disables collapse animation during D&D */
 .gemini-dnd-no-transition {
-    transition: none !important;
+  transition: none !important;
 }
 
-/* === 9. PFEIL-ANIMATION (KONSOLIDIERT) === */
-/* * KONSOLIDIERT: Doppelte Definitionen (Zeilen 200-214 und 306-315)
- * wurden zu diesem einen Block zusammengefasst.
- */
+/* === 9. ARROW ANIMATION === */
 .folder-header .folder-toggle-icon {
   transition: transform 0.3s ease !important;
   transform-origin: center !important;
@@ -336,56 +307,52 @@ mat-drawer.mat-drawer-opened {
   transform: rotate(90deg) !important;
 }
 
-/* === 10. NEUER ORDNER === */
-
+/* === 10. NEW FOLDER === */
 .new-folder-button {
-    height: 40px !important;
-    border-radius: 30px !important;
-    margin-left: 12px !important;
-    margin-right: 12px !important;
-    padding-right: 0px !important;
+  height: 40px !important;
+  border-radius: 30px !important;
+  margin-left: 12px !important;
+  margin-right: 12px !important;
+  padding-right: 0px !important;
 }
 
 .new-folder-button .mdc-list-item__primary-text {
-    color: var(--gem-sys-color--on-surface-variant) !important;
-
+  color: var(--gem-sys-color--on-surface-variant) !important;
 }
 
-/* NEU: Verhindert das Ändern der Icon-Farbe bei Hover oder Focus */
+/* Prevents icon color change on Hover or Focus */
 #new-folder-button:is(:hover, :focus) .mat-icon {
-    /* * Setzt die Farbe des Icons explizit auf den Standard-Farbton
-     * der Sidebar-Icons (on-surface-variant).
-     * !important ist leider notwendig, um die :hover-Regeln
-     * von Gemini zu überschreiben.
-     */
-    color: var(--gem-sys-color--on-surface-variant) !important;
+  /* Explicitly set icon color to standard shade of sidebar icons */
+  /* !important is necessary to override Gemini's hover rules */
+  color: var(--gem-sys-color--on-surface-variant) !important;
 }
 
 .icon-container {
-    margin-left: 14px !important;
-    width: 20px !important;
-    line-height: 24px !important;
+  margin-left: 14px !important;
+  width: 20px !important;
+  line-height: 24px !important;
 }
 
 .new-folder-icon {
-    height: 21px !important;
+  height: 21px !important;
 }
 
+/* === 11. CONVERSATION STYLING === */
 .conversation {
-    border-radius: 8px !important;
+  border-radius: 8px !important;
 }
 
 .user-query-bubble-with-background {
-    padding-top: 24px !important;
-    padding-bottom: 23px !important;
-    padding-left: 34px !important;
-    padding-right: 30px !important;
+  padding-top: 24px !important;
+  padding-bottom: 23px !important;
+  padding-left: 34px !important;
+  padding-right: 30px !important;
 }
 
 input-area-v2 {
-    border-radius: 24px !important;
+  border-radius: 24px !important;
 }
 
 .text-input-field {
-    padding: 18px 24px !important;
+  padding: 18px 24px !important;
 }

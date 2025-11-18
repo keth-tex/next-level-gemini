@@ -1,39 +1,43 @@
-// === SOFORTIGER FOUC-FIX ===
+/**
+ * fouc-fix.js
+ * Immediate FOUC (Flash of Unstyled Content) prevention.
+ * Injects styles to hide the conversation list until sorting is complete.
+ */
+
 (function() {
-    const style = document.createElement('style');
-    style.id = 'gemini-folder-fouc-fix';
-    style.textContent = `
-        /* 1. Verstecke den Hauptcontainer (wie gehabt) */
+  const style = document.createElement('style');
+  style.id = 'gemini-folder-fouc-fix';
+  style.textContent = `
+        /* 1. Hide main container */
         .conversations-container {
             visibility: hidden;
         }
 
-        /* 2. Verstecke den Lade-Spinner (NEU) */
+        /* 2. Hide loading spinner */
         infinite-scroller .loading-content-spinner-container, 
         infinite-scroller mat-progress-spinner {
             display: none !important;
         }
 
-        /* 3. Verstecke die Pin-Icons explizit (NEU) */
+        /* 3. Explicitly hide pin icons */
         .pin-icon-container,
         conversation-pin-icon {
             display: none !important;
         }
 
-        /* 4. Verhindere das "Aufpoppen" des Scrollbalkens im Elternelement (NEU) */
+        /* 4. Prevent scrollbar popping on parent */
         infinite-scroller {
             overflow: hidden !important;
         }
             
         .conversation-items-container {
-            /* Erzwingt den Startzustand der Animation */
+            /* Force start state of animation */
             grid-template-rows: 0fr !important;
             opacity: 0 !important;
             
-            /* Stellt sicher, dass es ein Grid ist, falls 
-               Geminis 'display: block' schneller ist */
+            /* Ensure it is a grid, in case Gemini's 'display: block' is applied faster */
             display: grid !important;
         }
     `;
-    (document.head || document.documentElement).prepend(style);
+  (document.head || document.documentElement).prepend(style);
 })();

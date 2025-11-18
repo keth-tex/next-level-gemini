@@ -1,371 +1,176 @@
-// === GLOBALE VARIABLEN NUR FÜR ORDNER-LOGIK ===
+/**
+ * feature-folders.js
+ * Main controller for folder functionality.
+ * Connects data, UI, and events.
+ */
+
+// === GLOBAL VARIABLES FOR FOLDER LOGIC ===
 let chatObserver;
 let isRendering = false;
 let isObservingChats = false;
-let originalFolderState = new Map(); // <-- NEU: Zwischenspeicher
+let originalFolderState = new Map(); // Temporary storage for state
 
-let revealTimer = null; // NEU: Separater Timer für das Aufdecken
-const REVEAL_SETTLE_TIME = 500; // NEU: Längere "Ruhe"-Zeit, um alle Batches abzuwarten
+let revealTimer = null; // Timer for revealing content
+const REVEAL_SETTLE_TIME = 500; // Settle time to wait for batches
 
 let isInitialSortComplete = false;
 
 const chatObserverConfig = {
-    childList: true, 
-    subtree: false,
-    characterData: false
+  childList: true,
+  subtree: false,
+  characterData: false
 };
 
-// [Auszug aus feature-folders.js]
+// === INITIALIZATION AND CONTROL ===
+
 async function prepareFoldersAndStartSync() {
-    console.log("Gemini Exporter: Setze alle Ordner auf 'isOpen: false'...");
+  console.log("Gemini Exporter: Setting all folders to 'isOpen: false'...");
 
-    // 1. Hole die aktuelle Struktur
-    let structure = await getFolderStructure();
-    
-    // 1.5. Speichere den ursprünglichen Zustand
-    originalFolderState.clear(); 
-    structure.forEach(folder => {
-        originalFolderState.set(folder.id, folder.isOpen);
-    });
-    console.log("Gemini Exporter: Ursprünglicher Ordner-Status zwischengespeichert.");
+  // 1. Get current structure
+  let structure = await getFolderStructure();
 
-    // 2. Modifiziere die Daten
-    structure.forEach(folder => {
-        folder.isOpen = false;
-    });
+  // 1.5. Cache original state
+  originalFolderState.clear();
+  structure.forEach(folder => {
+    originalFolderState.set(folder.id, folder.isOpen);
+  });
+  console.log("Gemini Exporter: Original folder state cached.");
 
-    // 3. Speichere die modifizierte Struktur zurück
-    await chrome.storage.local.set({ 'folderStructure': structure });
-    
-    console.log("Gemini Exporter: 'Close-All' abgeschlossen. Rendere Header & starte Observer...");
+  // 2. Modify data
+  structure.forEach(folder => {
+    folder.isOpen = false;
+  });
 
-    // 4. a. Rendere die (jetzt alle geschlossenen) Header
-    renderInitialFolders(); 
-    
-    // 4. b. Starte den "Live" Observer (Wieder hier)
-    const conversationContainer = document.querySelector('.conversations-container');
-    if (conversationContainer) {
-        chatObserver = new MutationObserver(handleChatListMutations);
-        chatObserver.observe(conversationContainer, chatObserverConfig);
-    }
-    
-    // 4. c. Starte die ERSTE "Live" Sortierung
-    // (ruft syncFullListOrder direkt statt triggerDebouncedSync)
-    console.log("Gemini Exporter: Führe erste Sortierung aus.");
-    syncFullListOrder();
-}
+  // 3. Save modified structure back
+  await chrome.storage.local.set({ 'folderStructure': structure });
 
-// === ORDNER-FUNKTIONEN (DATEN) ===
+  console.log("Gemini Exporter: 'Close-All' complete. Rendering headers & starting observer...");
 
-async function getFolderStructure() {
-  // --- (Unverändert) ---
-  let data = await chrome.storage.local.get('folderStructure');
-// ... (Restlicher Code für getFolderStructure) ...
-  if (data.folderStructure && Array.isArray(data.folderStructure) && data.folderStructure.find(f => f.isDefault)) {
-    return data.folderStructure; 
+  // 4. a. Render the (now all closed) headers
+  renderInitialFolders();
+
+  // 4. b. Start the "Live" Observer
+  const conversationContainer = document.querySelector('.conversations-container');
+  if (conversationContainer) {
+    chatObserver = new MutationObserver(handleChatListMutations);
+    chatObserver.observe(conversationContainer, chatObserverConfig);
   }
-  console.log("Gemini Exporter: Keine gültige Ordnerstruktur gefunden. Erstelle Standard...");
-  const defaultStructure = [
-    {
-      id: "default-chats",
-      name: "Chats",
-      chatIds: [], 
-      isOpen: true,
-      isDefault: true 
-    }
-  ];
-  if (data.folderStructure && Array.isArray(data.folderStructure)) {
-      data.folderStructure.forEach(oldFolder => {
-        if (oldFolder.id !== "default-chats") {
-            oldFolder.isDefault = false; 
-            defaultStructure.push(oldFolder);
-        }
-      });
-  }
-  await chrome.storage.local.set({ 'folderStructure': defaultStructure });
-  return defaultStructure;
+
+  // 4. c. Start the FIRST "Live" sort
+  // (calls syncFullListOrder directly instead of triggerDebouncedSync)
+  console.log("Gemini Exporter: Executing first sort.");
+  syncFullListOrder();
 }
 
-async function getChatFolderMap() {
-  // --- (Unverändert) ---
-    const structure = await getFolderStructure();
-// ... (Restlicher Code für getChatFolderMap) ...
-    const chatFolderMap = new Map();
-    let defaultFolderId = 'default-chats';
-    for (const folder of structure) {
-        if (folder.isDefault) {
-            defaultFolderId = folder.id;
-        }
-        if (Array.isArray(folder.chatIds)) { 
-            for (const chatId of folder.chatIds) {
-              chatFolderMap.set(chatId, folder.id);
-            }
-        }
-    }
-    return { chatFolderMap, defaultFolderId };
-}
-
-// === ORDNER-FUNKTIONEN (UI & HANDLER) ===
-
-function createFolderButton() {
-    // 1. Erstellt den <mat-action-list> Wrapper
-    const listWrapper = document.createElement('mat-action-list');
-    listWrapper.id = 'new-folder-button-wrapper'; 
-    // HIER IST DER FIX: 'top-action-list' hinzugefügt
-    listWrapper.className = 'mat-mdc-action-list mat-mdc-list-base mdc-list top-action-list';
-    listWrapper.setAttribute('role', 'group');
-
-    // 2. Erstellt das <button> Element
-    const button = document.createElement('button');
-    button.id = 'new-folder-button'; 
-    button.className = 'mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line new-folder-button';
-    button.setAttribute('type', 'button');
-    button.setAttribute('aria-label', 'Neuer Ordner');
-
-    // 3. Erstellt den Icon-Container
-    const iconContainer = document.createElement('div');
-    iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start new-folder-icon';
-    
-    // 4. Erstellt das <mat-icon> Element
-    const icon = document.createElement('mat-icon');
-    icon.className = 'mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color new-folder-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.setAttribute('data-mat-icon-type', 'font');
-    icon.textContent = 'folder'; // <-- Ändern Sie dies bei Bedarf
-    
-    iconContainer.appendChild(icon);
-
-    // 5. Erstellt die verschachtelten Text-Spans
-    const contentSpan = document.createElement('span');
-    contentSpan.className = 'mdc-list-item__content';
-    
-    const unscopedSpan = document.createElement('span');
-    unscopedSpan.className = 'mat-mdc-list-item-unscoped-content mdc-list-item__primary-text';
-    
-    const textSpan = document.createElement('span');
-    textSpan.className = 'gds-body-m'; // Die Text-Klasse von "Gems entdecken"
-    textSpan.textContent = 'Neuer Ordner';
-    
-    unscopedSpan.appendChild(textSpan);
-    contentSpan.appendChild(unscopedSpan);
-
-    // 6. Erstellt den Fokus-Indikator
-    const focusIndicator = document.createElement('div');
-    focusIndicator.className = 'mat-focus-indicator';
-
-    // 7. Baut den Button zusammen
-    button.appendChild(iconContainer);
-    button.appendChild(contentSpan);
-    button.appendChild(focusIndicator);
-    
-    // 8. Fügt den Klick-Listener hinzu
-    button.addEventListener('click', handleNewFolderClick);
-
-    // 9. Fügt den Button zum Wrapper hinzu
-    listWrapper.appendChild(button);
-
-    // 10. Gibt den gesamten Wrapper zurück
-    return listWrapper;
-}
-
-function renderSingleFolder(folder, index, totalFolders) {
-  // --- (Unverändert) ---
-    const header = document.createElement('div');
-// ... (Restlicher Code für renderSingleFolder) ...
-    header.className = 'folder-header';
-    header.dataset.folderId = folder.id;
-
-    let baseOrder = 1000;
-    try {
-        baseOrder = (parseInt(folder.id.replace(/\D/g,'')) % 1000) || 1000;
-    } catch(e) {}
-    header.style.order = baseOrder;
-    
-    header.innerHTML = `
-      <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font mat-icon-no-color folder-toggle-icon" aria-hidden="true">chevron_right</mat-icon>
-      <span class="folder-name">${folder.name}</span>
-      
-      <span class="folder-actions">
-        ${!folder.isDefault ? `
-          <button class="action-btn" data-action="move-up" title="Nach oben" ${index === 0 ? 'disabled style="cursor: pointer;"' : ''}>
-            <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">arrow_upward</mat-icon>
-          </button>
-          <button class="action-btn" data-action="move-down" title="Nach unten" ${index === totalFolders - 1 ? 'disabled style="cursor: pointer;"' : ''}>
-            <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">arrow_downward</mat-icon>
-          </button>
-        ` : ''}
-        
-        <button class="action-btn" data-action="rename" title="Umbenennen">
-          <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">create</mat-icon>
-        </button>
-        
-        ${!folder.isDefault ? `
-          <button class="action-btn" data-action="delete" title="Löschen">
-            <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">delete_outline</mat-icon>
-          </button>
-        ` : ''}
-      </span>
-    `;
-    
-    if (folder.isOpen) {
-      header.classList.add('is-open');
-    }
-    
-    header.addEventListener('click', (e) => {
-        if (e.target.closest('.action-btn')) {
-            return;
-        }
-        toggleFolder(folder.id);
-    });
-
-    header.querySelector('.folder-actions').addEventListener('click', (e) => {
-        const button = e.target.closest('.action-btn');
-        if (!button) return;
-        
-        e.stopPropagation(); 
-        
-        const action = button.dataset.action;
-        switch (action) {
-            case 'move-up':
-                handleMoveFolder(folder.id, 'up');
-                break;
-            case 'move-down':
-                handleMoveFolder(folder.id, 'down');
-                break;
-            case 'rename':
-                const nameSpan = header.querySelector('.folder-name');
-                activateInlineEdit(nameSpan, folder.id);
-                break;
-            case 'delete':
-                handleDeleteFolder(folder.id);
-                break;
-        }
-    });
-    
-    header.addEventListener('dragover', handleDragOverFolder);
-    header.addEventListener('dragleave', handleDragLeaveFolder);
-    header.addEventListener('drop', handleDropOnFolder);
-    
-    return header;
-}
+// === FOLDER LOGIC (ACTIONS & SYNC) ===
 
 async function handleNewFolderClick() {
-  // --- (Modifiziert) ---
-    let structure = await getFolderStructure();
-// ... (Restlicher Code für handleNewFolderClick) ...
-    
-    const newFolder = {
-      id: `folder-${crypto.randomUUID()}`,
-      name: "Neuer Ordner", 
-      chatIds: [],
-      isOpen: true, 
-      isDefault: false
-    };
-    
-    const defaultIndex = structure.findIndex(f => f.isDefault);
-    if (defaultIndex > -1) {
-        structure.splice(defaultIndex, 0, newFolder);
-    } else {
-        structure.push(newFolder);
+  let structure = await getFolderStructure();
+
+  const newFolder = {
+    id: `folder-${crypto.randomUUID()}`,
+    name: "Neuer Ordner",
+    chatIds: [],
+    isOpen: true,
+    isDefault: false
+  };
+
+  const defaultIndex = structure.findIndex(f => f.isDefault);
+  if (defaultIndex > -1) {
+    structure.splice(defaultIndex, 0, newFolder);
+  } else {
+    structure.push(newFolder);
+  }
+
+  await chrome.storage.local.set({ 'folderStructure': structure });
+  console.log(`Gemini Exporter: Folder '${newFolder.name}' added.`);
+
+  // --- FLICKER FIX ---
+  // 1. Manually render the header
+  const container = document.querySelector('.conversations-container');
+  if (container) {
+    const customFolders = structure.filter(f => !f.isDefault);
+    const index = customFolders.findIndex(f => f.id === newFolder.id);
+    const newHeaderEl = renderSingleFolder(newFolder, index, customFolders.length);
+    container.appendChild(newHeaderEl);
+  }
+
+  // 2. Call Sync *immediately* (NO Debounce, user action)
+  await syncFullListOrder();
+
+  // 3. Start edit mode
+  setTimeout(() => {
+    const newHeader = document.querySelector(`.folder-header[data-folder-id="${newFolder.id}"]`);
+    if (newHeader) {
+      const nameSpan = newHeader.querySelector('.folder-name');
+      activateInlineEdit(nameSpan, newFolder.id);
     }
-    
-    await chrome.storage.local.set({ 'folderStructure': structure });
-    console.log(`Gemini Exporter: Ordner '${newFolder.name}' hinzugefügt.`);
-    
-    // --- FLICKER-FIX ---
-    // 1. Manuell den Header rendern
-    const container = document.querySelector('.conversations-container');
-    if (container) {
-        const customFolders = structure.filter(f => !f.isDefault);
-        const index = customFolders.findIndex(f => f.id === newFolder.id);
-        const newHeaderEl = renderSingleFolder(newFolder, index, customFolders.length);
-        container.appendChild(newHeaderEl);
-    }
-    
-    // 2. Sync *sofort* aufrufen (KEIN Debounce, User-Aktion)
-    await syncFullListOrder(); 
-    
-    // 3. Edit-Modus starten
-    setTimeout(() => {
-        const newHeader = document.querySelector(`.folder-header[data-folder-id="${newFolder.id}"]`);
-        if (newHeader) {
-            const nameSpan = newHeader.querySelector('.folder-name');
-            activateInlineEdit(nameSpan, newFolder.id);
-        }
-    }, 0);
+  }, 0);
 }
 
 async function toggleFolder(folderId) {
   let structure = await getFolderStructure();
   const folder = structure.find(f => f.id === folderId);
   if (!folder) return;
-  
+
   folder.isOpen = !folder.isOpen;
   await chrome.storage.local.set({ 'folderStructure': structure });
 
   const folderHeader = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
   if (folderHeader) {
-      if (folder.isOpen) {
-        folderHeader.classList.add('is-open');
-      } else {
-        folderHeader.classList.remove('is-open');
-      }
+    if (folder.isOpen) {
+      folderHeader.classList.add('is-open');
+    } else {
+      folderHeader.classList.remove('is-open');
+    }
   }
 
   const chatsInFolder = document.querySelectorAll(
-      `.conversations-container .conversation-items-container[data-folder-id="${folderId}"]`
+    `.conversations-container .conversation-items-container[data-folder-id="${folderId}"]`
   );
-  
-  console.log(`Gemini Exporter: Schalte ${chatsInFolder.length} Chats auf ${folder.isOpen ? 'sichtbar' : 'unsichtbar'}.`);
-  
-  // === MODIFIZIERTER TEIL (in toggleFolder) ===
+
+  console.log(`Gemini Exporter: Switching ${chatsInFolder.length} chats to ${folder.isOpen ? 'visible' : 'invisible'}.`);
+
   chatsInFolder.forEach(chatEl => {
-      
-      // 1. STELLE SICHER, DASS ES 'grid' IST
-      // Überschreibe den 'display: block'-Stil von Gemini
-      // chatEl.style.display = 'grid';
-      
-      // 2. Schalte die Klasse für die Animation um
-      if (folder.isOpen) {
-        // Die Klasse entfernen, um die "1fr"-Animation zu starten
-        chatEl.classList.remove('chat-item-rolled-up'); 
-      } else {
-        // Die Klasse hinzufügen, um die "0fr"-Animation zu starten
-        chatEl.classList.add('chat-item-rolled-up'); 
-      }
-    });
-  // === ENDE MODIFIKATION ===
+    // Toggle animation class
+    if (folder.isOpen) {
+      // Remove class to start "1fr" animation
+      chatEl.classList.remove('chat-item-rolled-up');
+    } else {
+      // Add class to start "0fr" animation
+      chatEl.classList.add('chat-item-rolled-up');
+    }
+  });
 }
 
 async function renderInitialFolders() {
-  // --- (Modifiziert) ---
   if (isRendering) return;
   isRendering = true;
-  if (mainObserver) mainObserver.disconnect(); // WICHTIG: mainObserver ist in main.js
-// ... (Restlicher Code für renderInitialFolders) ...
+  if (mainObserver) mainObserver.disconnect(); // Important: mainObserver is in main.js
+
   const structure = await getFolderStructure();
   const conversationContainer = document.querySelector('.conversations-container');
-  
+
   if (!conversationContainer) {
-    console.error("Gemini Exporter: Konnte .conversations-container für Header-Injektion nicht finden.");
+    console.error("Gemini Exporter: Could not find .conversations-container for header injection.");
     isRendering = false;
-    if (mainObserver) mainObserver.observe(document.body, mainObserverConfig); // mainObserverConfig ist in main.js
+    if (mainObserver) mainObserver.observe(document.body, mainObserverConfig); // mainObserverConfig is in main.js
     return;
   }
-  
+
   conversationContainer.querySelectorAll('.folder-header').forEach(h => h.remove());
-  
+
   const customFolders = structure.filter(f => !f.isDefault);
   const defaultFolder = structure.find(f => f.isDefault);
-  
+
   customFolders.forEach((folder, index) => {
     const folderEl = renderSingleFolder(folder, index, customFolders.length);
     conversationContainer.appendChild(folderEl);
   });
-  
+
   if (defaultFolder) {
-      const folderEl = renderSingleFolder(defaultFolder, 0, 1);
-      conversationContainer.appendChild(folderEl);
+    const folderEl = renderSingleFolder(defaultFolder, 0, 1);
+    conversationContainer.appendChild(folderEl);
   }
 
   if (mainObserver) mainObserver.observe(document.body, mainObserverConfig);
@@ -373,511 +178,260 @@ async function renderInitialFolders() {
 }
 
 /**
- * --- NEU: Gekapselte Reveal-Funktion ---
- * Diese Funktion wird aufgerufen, NACHDEM sich die Mutationen beruhigt haben.
+ * Encapsulated Reveal Function
+ * Called after mutations have settled.
  */
 async function revealContainer() {
-    if (isInitialSortComplete) return; // Wurde bereits aufgedeckt
+  if (isInitialSortComplete) return; // Already revealed
 
-    const container = document.querySelector('.conversations-container');
-    if (!container) {
-        console.warn("Gemini Exporter: Reveal-Timer abgelaufen, aber Container nicht gefunden.");
-        return;
+  const container = document.querySelector('.conversations-container');
+  if (!container) {
+    console.warn("Gemini Exporter: Reveal timer expired, but container not found.");
+    return;
+  }
+
+  const hasChats = container.querySelector('.conversation-items-container');
+  const isEmpty = document.querySelector('.empty-state-container'); // Global check
+
+  // Reveal only if there is content (chats or empty message)
+  if (hasChats || isEmpty) {
+    console.log("Gemini Exporter: Mutations settled. Executing final sync and revealing.");
+
+    // 1. Restore original 'isOpen' state
+    if (originalFolderState.size > 0) {
+      console.log("Gemini Exporter: Restoring original folder status...");
+      let structure = await getFolderStructure();
+      let changed = false;
+
+      structure.forEach(folder => {
+        const originalState = originalFolderState.get(folder.id);
+        if (originalState !== undefined && folder.isOpen !== originalState) {
+          folder.isOpen = originalState;
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        await chrome.storage.local.set({ 'folderStructure': structure });
+      }
+      originalFolderState.clear();
     }
 
-    const hasChats = container.querySelector('.conversation-items-container');
-    const isEmpty = document.querySelector('.empty-state-container'); // Globale Prüfung
+    // Execute sort one last time before revealing
+    await syncFullListOrder();
 
-    // Wir decken nur auf, wenn es auch Inhalt gibt (Chats oder die "Leer"-Nachricht)
-    if (hasChats || isEmpty) {
-        console.log("Gemini Exporter: Mutations haben sich beruhigt. Führe finalen Sync aus und decke auf.");
-        
-        // --- ÄNDERUNG START ---
-        // 1. Stelle den ursprünglichen 'isOpen'-Status wieder her
-        if (originalFolderState.size > 0) {
-            console.log("Gemini Exporter: Stelle ursprünglichen Ordner-Status wieder her...");
-            let structure = await getFolderStructure();
-            let changed = false;
-            
-            structure.forEach(folder => {
-                const originalState = originalFolderState.get(folder.id);
-                // Prüfe, ob der gespeicherte Zustand existiert UND
-                // ob er sich vom (aktuell 'false') Zustand im Storage unterscheidet.
-                if (originalState !== undefined && folder.isOpen !== originalState) {
-                    folder.isOpen = originalState;
-                    changed = true;
-                }
-            });
-            
-            // Speichere nur, wenn es Änderungen gab
-            if (changed) {
-                await chrome.storage.local.set({ 'folderStructure': structure });
-            }
-            originalFolderState.clear(); // Speicher leeren
-        }
-        // --- ÄNDERUNG ENDE ---
-
-        // WICHTIG: Führe die Sortierung ein letztes Mal aus,
-        // um den *finalen* Zustand zu sortieren, BEVOR es sichtbar wird.
-        await syncFullListOrder(); 
-
-        // --- NEUE REVEAL LOGIK ---
-
-        // 1. Finde und entferne das FOUC-Fix-Stylesheet.
-        //    Das entfernt ALLE FOUC-Regeln auf einen Schlag
-        //    (für Pins, Spinner, Scrollbar und Container).
-        const foucStyle = document.getElementById('gemini-folder-fouc-fix');
-        if (foucStyle) {
-            foucStyle.remove();
-            console.log("Gemini Exporter: FOUC-Stylesheet entfernt.");
-        }
-
-        // 2. Setze die Sichtbarkeit des Containers explizit auf 'visible' (inline).
-        //    Dies dient als Fallback und überschreibt die (jetzt entfernte)
-        //    'visibility: hidden'-Regel aus dem Stylesheet.
-        container.style.visibility = 'visible';
-        
-        // 3. (Optional, aber sauber): Entferne den !important-Scrollbar-Fix 
-        //    vom Elternelement als Fallback, falls das Stylesheet-Entfernen fehlschlägt.
-        const sidenavContent = document.querySelector('bard-sidenav-content');
-        if (sidenavContent) {
-            sidenavContent.style.overflow = ''; // Setzt es auf den Standardwert zurück
-        }
-        // --- ENDE NEUE LOGIK ---
-
-        isInitialSortComplete = true;
-        console.log("Gemini Exporter: Liste sortiert und aufgedeckt.");
-    } else {
-        // Timer ist abgelaufen, aber es gibt nichts zu sehen (sollte nicht passieren)
-        console.log("Gemini Exporter: Reveal-Timer abgelaufen, aber weder Chats noch Empty-State gefunden. Warte auf nächste Mutation.");
+    // NEW REVEAL LOGIC
+    // 1. Remove FOUC fix stylesheet
+    const foucStyle = document.getElementById('gemini-folder-fouc-fix');
+    if (foucStyle) {
+      foucStyle.remove();
+      console.log("Gemini Exporter: FOUC stylesheet removed.");
     }
+
+    // 2. Set visibility explicitly
+    container.style.visibility = 'visible';
+
+    // 3. Remove scrollbar fix from parent as fallback
+    const sidenavContent = document.querySelector('bard-sidenav-content');
+    if (sidenavContent) {
+      sidenavContent.style.overflow = '';
+    }
+
+    isInitialSortComplete = true;
+    console.log("Gemini Exporter: List sorted and revealed.");
+  } else {
+    console.log("Gemini Exporter: Reveal timer expired, but no chats or empty state found. Waiting for next mutation.");
+  }
 }
 
 function handleChatListMutations(mutations) {
-    // triggerDebouncedSync(); // <-- ALT
-    
-    // NEU: Rufe die Sortierung sofort auf.
-    // Die 'isRendering'-Sperre in syncFullListOrder
-    // verhindert Überlappungen.
-    syncFullListOrder();
+  // Call sort immediately.
+  // The 'isRendering' lock in syncFullListOrder prevents overlaps.
+  syncFullListOrder();
 }
 
 async function syncFullListOrder() {
-  // --- (Modifiziert) ---
-    if (isRendering) return;
-    isRendering = true;
-// ... (Restlicher Code für syncFullListOrder) ...
-    const structure = await getFolderStructure();
-    const { chatFolderMap, defaultFolderId } = await getChatFolderMap();
+  if (isRendering) return;
+  isRendering = true;
 
-    const container = document.querySelector('.conversations-container');
-    if (!container) {
-        isRendering = false;
-        return;
-    }
-    const allChatItems = container.querySelectorAll('.conversation-items-container');
-    
-    const orderCounters = new Map();
-    let baseOrder = 0;
+  const structure = await getFolderStructure();
+  const { chatFolderMap, defaultFolderId } = await getChatFolderMap();
 
-    // --- MODIFIZIERT: FLICKER-FIX ---
-    // Trenne Ordner, um Button-Status zu aktualisieren
-    let customFolders = structure.filter(f => !f.isDefault);
-    const defaultFolder = structure.find(f => f.isDefault);
-    let sortedStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
-
-    sortedStructure.forEach((folder, index) => {
-        baseOrder = (index + 1) * 1000;
-        
-        const headerEl = container.querySelector(`.folder-header[data-folder-id="${folder.id}"]`);
-        if (headerEl) {
-            headerEl.style.order = baseOrder;
-
-            // Setzt den 'is-open'-Status für das Icon
-            // basierend auf den wiederhergestellten Daten.
-            if (folder.isOpen) {
-                headerEl.classList.add('is-open');
-            } else {
-                headerEl.classList.remove('is-open');
-            }
-
-            // Aktualisiere Button-Status
-            if (!folder.isDefault) {
-                const upBtn = headerEl.querySelector('[data-action="move-up"]');
-                const downBtn = headerEl.querySelector('[data-action="move-down"]');
-                // Finde den echten Index innerhalb der customFolders
-                const customIndex = customFolders.findIndex(f => f.id === folder.id);
-                
-                if (upBtn) upBtn.disabled = (customIndex === 0);
-                if (downBtn) downBtn.disabled = (customIndex === customFolders.length - 1);
-            }
-        }
-        
-        orderCounters.set(folder.id, baseOrder + 1);
-    });
-    // --- ENDE FLICKER-FIX ---
-
-
-    allChatItems.forEach(chatEl => {
-        let chatId = chatEl.dataset.chatId;
-        if (!chatId) {
-            const conversationEl = chatEl.querySelector('[data-test-id="conversation"]');
-            if (conversationEl && conversationEl.hasAttribute('jslog')) {
-                const jslog = conversationEl.getAttribute('jslog');
-                const match = jslog.match(/"(c_[a-f0-9]+)"/);
-                if (match && match[1]) {
-                    chatId = match[1];
-                    chatEl.dataset.chatId = chatId;
-                }
-            }
-        }
-        if (!chatId) {
-            chatEl.style.order = '99999';
-            return;
-        }
-        
-        if (!chatEl.hasAttribute('draggable')) {
-            chatEl.setAttribute('draggable', 'true');
-            chatEl.addEventListener('dragstart', handleDragStartChat);
-            chatEl.addEventListener('dragover', handleDragOverChat);
-            chatEl.addEventListener('dragleave', handleDragLeaveChat);
-            chatEl.addEventListener('drop', handleDropOnChat);
-        }
-
-        const folderId = chatFolderMap.get(chatId) || defaultFolderId;
-        const folder = structure.find(f => f.id === folderId) || structure.find(f => f.isDefault);
-
-        let order = orderCounters.get(folder.id);
-        chatEl.style.order = order;
-        
-        orderCounters.set(folder.id, order + 1);
-
-        // === KORRIGIERTER BLOCK (ersetzt alles) ===
-        
-        // 1. ÜBERSCHREIBE DEN INLINE-STYLE VON GEMINI
-        // Gemini setzt 'display: block'. Wir überschreiben es mit 'display: grid'.
-        // Dies ist der einzige Weg, um die Grid-Animation zu aktivieren.
-        // chatEl.style.display = 'grid'; 
-
-        // 2. Setze den initialen Zustand (offen/geschlossen)
-        // (Das war bereits korrekt)
-        if (folder.isOpen) {
-            chatEl.classList.remove('chat-item-rolled-up'); 
-        } else {
-            chatEl.classList.add('chat-item-rolled-up');
-        }
-        // === ENDE KORREKTUR ===
-        
-        chatEl.dataset.folderId = folder.id;
-    }); // <-- Ende der allChatItems.forEach
-
+  const container = document.querySelector('.conversations-container');
+  if (!container) {
     isRendering = false;
-}
+    return;
+  }
+  const allChatItems = container.querySelectorAll('.conversation-items-container');
 
-// === HANDLER-FUNKTIONEN FÜR ORDNERVERWALTUNG ===
+  const orderCounters = new Map();
+  let baseOrder = 0;
 
-function activateInlineEdit(nameSpan, folderId) {
-  // --- (Unverändert) ---
-    if (!nameSpan || !folderId || nameSpan.isEditing) return;
-// ... (Restlicher Code für activateInlineEdit) ...
-    nameSpan.isEditing = true; 
-    
-    const header = nameSpan.closest('.folder-header');
-    const originalName = nameSpan.textContent;
-    
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = originalName;
-    input.className = 'folder-name-input'; 
-    
-    nameSpan.style.display = 'none';
-    header.insertBefore(input, nameSpan.nextSibling);
-    input.focus();
+  // --- FLICKER FIX ---
+  // Separate folders to update button status
+  let customFolders = structure.filter(f => !f.isDefault);
+  const defaultFolder = structure.find(f => f.isDefault);
+  let sortedStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
 
-    // --- ÄNDERUNG HIER ---
-    // Statt input.select(); setzen wir die Einfügemarke ans Ende
-    const len = input.value.length;
-    input.setSelectionRange(len, len);
-    // --- ENDE ÄNDERUNG ---
+  sortedStructure.forEach((folder, index) => {
+    baseOrder = (index + 1) * 1000;
 
-    const saveChanges = async () => {
-        const newName = input.value.trim();
-        
-        input.removeEventListener('keydown', handleKey);
-        input.removeEventListener('blur', saveChanges);
+    const headerEl = container.querySelector(`.folder-header[data-folder-id="${folder.id}"]`);
+    if (headerEl) {
+      headerEl.style.order = baseOrder;
 
-        input.remove();
-        nameSpan.style.display = '';
-        nameSpan.isEditing = false;
-        
-        if (newName && newName !== originalName) {
-            let structure = await getFolderStructure();
-            const folder = structure.find(f => f.id === folderId);
-            if (folder) {
-                folder.name = newName;
-                await chrome.storage.local.set({ 'folderStructure': structure });
-                nameSpan.textContent = newName;
-            }
-        } else {
-            nameSpan.textContent = originalName;
+      // Set 'is-open' status for icon based on restored data
+      if (folder.isOpen) {
+        headerEl.classList.add('is-open');
+      } else {
+        headerEl.classList.remove('is-open');
+      }
+
+      // Update button status
+      if (!folder.isDefault) {
+        const upBtn = headerEl.querySelector('[data-action="move-up"]');
+        const downBtn = headerEl.querySelector('[data-action="move-down"]');
+        const customIndex = customFolders.findIndex(f => f.id === folder.id);
+
+        if (upBtn) upBtn.disabled = (customIndex === 0);
+        if (downBtn) downBtn.disabled = (customIndex === customFolders.length - 1);
+      }
+    }
+
+    orderCounters.set(folder.id, baseOrder + 1);
+  });
+
+  allChatItems.forEach(chatEl => {
+    let chatId = chatEl.dataset.chatId;
+    if (!chatId) {
+      const conversationEl = chatEl.querySelector('[data-test-id="conversation"]');
+      if (conversationEl && conversationEl.hasAttribute('jslog')) {
+        const jslog = conversationEl.getAttribute('jslog');
+        const match = jslog.match(/"(c_[a-f0-9]+)"/);
+        if (match && match[1]) {
+          chatId = match[1];
+          chatEl.dataset.chatId = chatId;
         }
-    };
+      }
+    }
+    if (!chatId) {
+      chatEl.style.order = '99999';
+      return;
+    }
 
-    const handleKey = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            saveChanges();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            input.value = originalName; 
-            saveChanges();
-        }
-    };
-    
-    input.addEventListener('keydown', handleKey);
-    input.addEventListener('blur', saveChanges);
+    if (!chatEl.hasAttribute('draggable')) {
+      chatEl.setAttribute('draggable', 'true');
+      chatEl.addEventListener('dragstart', handleDragStartChat);
+      chatEl.addEventListener('dragover', handleDragOverChat);
+      chatEl.addEventListener('dragleave', handleDragLeaveChat);
+      chatEl.addEventListener('drop', handleDropOnChat);
+    }
+
+    const folderId = chatFolderMap.get(chatId) || defaultFolderId;
+    const folder = structure.find(f => f.id === folderId) || structure.find(f => f.isDefault);
+
+    let order = orderCounters.get(folder.id);
+    chatEl.style.order = order;
+
+    orderCounters.set(folder.id, order + 1);
+
+    // Set initial state (open/closed)
+    if (folder.isOpen) {
+      chatEl.classList.remove('chat-item-rolled-up');
+    } else {
+      chatEl.classList.add('chat-item-rolled-up');
+    }
+
+    chatEl.dataset.folderId = folder.id;
+  });
+
+  isRendering = false;
 }
 
 async function handleDeleteFolder(folderId) {
-  // --- (Modifiziert) ---
-    let structure = await getFolderStructure();
-// ... (Restlicher Code für handleDeleteFolder) ...
-    const folderIndex = structure.findIndex(f => f.id === folderId);
-    if (folderIndex === -1 || structure[folderIndex].isDefault) return;
-    
-    const folder = structure[folderIndex];
-    // if (!confirm(`Soll der Ordner "${folder.name}" wirklich gelöscht werden? Alle darin enthaltenen Chats werden in den "Chats"-Ordner verschoben.`)) {
-        // return;
-    // }
+  let structure = await getFolderStructure();
+  const folderIndex = structure.findIndex(f => f.id === folderId);
+  if (folderIndex === -1 || structure[folderIndex].isDefault) return;
 
-    const defaultFolder = structure.find(f => f.isDefault);
-    if (!defaultFolder) {
-        console.error("Gemini Exporter: Löschen fehlgeschlagen, kein Default-Ordner gefunden.");
-        return;
-    }
+  const folder = structure[folderIndex];
 
-    defaultFolder.chatIds.unshift(...folder.chatIds);
-    structure.splice(folderIndex, 1);
-    await chrome.storage.local.set({ 'folderStructure': structure });
-    
-    // --- FLICKER-FIX ---
-    // 1. Manuell den Header entfernen
-    const headerEl = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
-    if (headerEl) headerEl.remove();
-    
-    // 2. Sync *sofort* aufrufen
-    await syncFullListOrder();
-    // --- ENDE FLICKER-FIX ---
+  const defaultFolder = structure.find(f => f.isDefault);
+  if (!defaultFolder) {
+    console.error("Gemini Exporter: Delete failed, no default folder found.");
+    return;
+  }
+
+  defaultFolder.chatIds.unshift(...folder.chatIds);
+  structure.splice(folderIndex, 1);
+  await chrome.storage.local.set({ 'folderStructure': structure });
+
+  // --- FLICKER FIX ---
+  // 1. Manually remove header
+  const headerEl = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
+  if (headerEl) headerEl.remove();
+
+  // 2. Sync *immediately*
+  await syncFullListOrder();
 }
 
-async function handleMoveFolder(folderId, direction) { 
-  // --- (Modifiziert) ---
-    let structure = await getFolderStructure();
-// ... (Restlicher Code für handleMoveFolder) ...
-    
-    let customFolders = structure.filter(f => !f.isDefault);
-    const defaultFolder = structure.find(f => f.isDefault);
-    
-    const index = customFolders.findIndex(f => f.id === folderId);
-    if (index === -1) return; 
+async function handleMoveFolder(folderId, direction) {
+  let structure = await getFolderStructure();
 
-    if (direction === 'up' && index > 0) {
-        [customFolders[index], customFolders[index - 1]] = [customFolders[index - 1], customFolders[index]];
-    } else if (direction === 'down' && index < customFolders.length - 1) {
-        [customFolders[index], customFolders[index + 1]] = [customFolders[index + 1], customFolders[index]];
-    } else {
-        return; 
-    }
+  let customFolders = structure.filter(f => !f.isDefault);
+  const defaultFolder = structure.find(f => f.isDefault);
 
-    const newStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
-    await chrome.storage.local.set({ 'folderStructure': newStructure });
+  const index = customFolders.findIndex(f => f.id === folderId);
+  if (index === -1) return;
 
-    // --- FLICKER-FIX ---
-    // 1. Sync *sofort* aufrufen.
-    await syncFullListOrder();
-    // --- ENDE FLICKER-FIX ---
-}
+  if (direction === 'up' && index > 0) {
+    [customFolders[index], customFolders[index - 1]] = [customFolders[index - 1], customFolders[index]];
+  } else if (direction === 'down' && index < customFolders.length - 1) {
+    [customFolders[index], customFolders[index + 1]] = [customFolders[index + 1], customFolders[index]];
+  } else {
+    return;
+  }
 
-// === DRAG-AND-DROP HANDLER ===
+  const newStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
+  await chrome.storage.local.set({ 'folderStructure': newStructure });
 
-function handleDragStartChat(event) {
-    const chatEl = event.currentTarget;
-    
-    // --- NEU: Animationen deaktivieren ---
-    // Verhindert den "Aufblitz"-Glitch beim Droppen,
-    // indem die Zuklapp-Animation (grid-template-rows) deaktiviert wird.
-    chatEl.classList.add('gemini-dnd-no-transition');
-    chatEl.querySelectorAll('*').forEach(child => {
-        child.classList.add('gemini-dnd-no-transition');
-    });
-    // --- ENDE NEU ---
-
-    document.documentElement.classList.add('gemini-chat-is-dragging');
-    
-    event.dataTransfer.setData("text/gemini-chat-id", chatEl.dataset.chatId);
-    event.dataTransfer.effectAllowed = "move";
-    
-    chatEl.classList.add('gemini-dragging');
-    chatEl.addEventListener('dragend', handleDragEndChat, { once: true });
-}
-
-function handleDragEndChat(event) {
-    // Globale Klasse entfernen
-    document.documentElement.classList.remove('gemini-chat-is-dragging');
-
-    // Gezogenes Element aufräumen
-    const chatEl = event.currentTarget;
-    if (chatEl) { // Sicherstellen, dass das Element noch existiert
-        chatEl.classList.remove('gemini-dragging');
-        
-        // --- NEU: Animationen wieder aktivieren ---
-        chatEl.classList.remove('gemini-dnd-no-transition');
-        chatEl.querySelectorAll('*').forEach(child => {
-        child.classList.remove('gemini-dnd-no-transition');
-    });
-        // --- ENDE NEU ---
-    }
-    
-    // Alle Drop-Highlights entfernen
-    document.querySelectorAll('.folder-header.gemini-drag-over').forEach(el => {
-        el.classList.remove('gemini-drag-over');
-    });
-    document.querySelectorAll('.conversation-items-container.gemini-chat-drag-over').forEach(el => {
-        el.classList.remove('gemini-chat-drag-over');
-    });
-}
-
-function handleDragOverFolder(event) {
-  // --- (Unverändert) ---
-    if (!event.dataTransfer.types.includes("text/gemini-chat-id")) {
-// ... (Restlicher Code für handleDragOverFolder) ...
-        return;
-    }
-    
-    event.preventDefault(); 
-    event.dataTransfer.dropEffect = "move";
-    event.currentTarget.classList.add('gemini-drag-over');
-}
-
-function handleDragLeaveFolder(event) {
-  // --- (Unverändert) ---
-    event.currentTarget.classList.remove('gemini-drag-over');
-}
-
-async function handleDropOnFolder(event) {
-    event.preventDefault();
-    event.stopPropagation(); // (Dieser Teil von letztem Mal ist weiterhin korrekt)
-    
-    const folderHeaderEl = event.currentTarget; // Der Ordner-Header, auf den wir droppen
-    folderHeaderEl.classList.remove('gemini-drag-over');
-    
-    const chatId = event.dataTransfer.getData("text/gemini-chat-id");
-    const newFolderId = folderHeaderEl.dataset.folderId;
-    
-    if (!chatId || !newFolderId) {
-        console.error("Gemini Exporter: Drop-Fehler, chatId or newFolderId fehlt.");
-        return;
-    }
-
-    // --- NEUER FIX (Basierend auf deiner Hypothese) ---
-    // Wir setzen den Status *sofort*, noch vor der 'await'-Logik,
-    // um den Glitch zu verhindern.
-
-    // 1. Finde das Chat-Element, das wir gerade ziehen
-    const chatEl = document.querySelector(`.conversation-items-container[data-chat-id="${chatId}"]`);
-    
-    // 2. Prüfe, ob der Ziel-Ordner (auf den wir droppen) geschlossen ist
-    const isTargetFolderClosed = !folderHeaderEl.classList.contains('is-open');
-
-    // 3. Wenn ja, wende den "geschlossen"-Status SOFORT auf den Chat an
-    if (chatEl && isTargetFolderClosed) {
-        console.log("Gemini Exporter: Wende 'rolled-up' präventiv an.");
-        chatEl.classList.add('chat-item-rolled-up');
-    }
-    // --- ENDE NEUER FIX ---
-    
-    // 4. Starte die normale Speicher/Sortier-Logik (die die Klasse
-    //    später einfach noch einmal setzen wird, was aber egal ist)
-    await moveChatToFolder(chatId, newFolderId);
+  // --- FLICKER FIX ---
+  // 1. Sync *immediately*
+  await syncFullListOrder();
 }
 
 async function moveChatToFolder(chatId, newFolderId) {
-  // --- (Unverändert) ---
-    if (!chatId || !newFolderId) return;
-// ... (Restlicher Code für moveChatToFolder) ...
-    
-    let structure = await getFolderStructure();
-    let currentFolderId = null;
+  if (!chatId || !newFolderId) return;
 
-    structure.forEach(folder => {
-        const index = folder.chatIds.indexOf(chatId);
-        if (index > -1) {
-            currentFolderId = folder.id;
-        }
-    });
+  let structure = await getFolderStructure();
+  let currentFolderId = null;
 
-    if (currentFolderId === newFolderId) {
-        console.log("Gemini Exporter: Chat ist bereits im Zielordner. Breche Verschiebung ab.");
-        return; 
+  structure.forEach(folder => {
+    const index = folder.chatIds.indexOf(chatId);
+    if (index > -1) {
+      currentFolderId = folder.id;
     }
+  });
 
-    if(currentFolderId) {
-        const oldFolder = structure.find(f => f.id === currentFolderId);
-        if (oldFolder) {
-            const index = oldFolder.chatIds.indexOf(chatId);
-            if (index > -1) {
-                oldFolder.chatIds.splice(index, 1);
-            }
-        }
+  if (currentFolderId === newFolderId) {
+    console.log("Gemini Exporter: Chat already in target folder. Canceling move.");
+    return;
+  }
+
+  if (currentFolderId) {
+    const oldFolder = structure.find(f => f.id === currentFolderId);
+    if (oldFolder) {
+      const index = oldFolder.chatIds.indexOf(chatId);
+      if (index > -1) {
+        oldFolder.chatIds.splice(index, 1);
+      }
     }
+  }
 
-    const newFolder = structure.find(f => f.id === newFolderId);
-    if (newFolder) {
-        newFolder.chatIds.unshift(chatId); 
-    }
+  const newFolder = structure.find(f => f.id === newFolderId);
+  if (newFolder) {
+    newFolder.chatIds.unshift(chatId);
+  }
 
-    await chrome.storage.local.set({ 'folderStructure': structure });
-    await syncFullListOrder();
-}
-
-function handleDragOverChat(event) {
-  // --- (Unverändert) ---
-    if (!event.dataTransfer.types.includes("text/gemini-chat-id")) {
-// ... (Restlicher Code für handleDragOverChat) ...
-        return;
-    }
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    
-    const draggedChatId = event.dataTransfer.getData("text/gemini-chat-id");
-    if (event.currentTarget.dataset.chatId === draggedChatId) {
-        return;
-    }
-    
-    event.currentTarget.classList.add('gemini-chat-drag-over');
-}
-
-function handleDragLeaveChat(event) {
-  // --- (Unverändert) ---
-    event.currentTarget.classList.remove('gemini-chat-drag-over');
-}
-
-async function handleDropOnChat(event) {
-  // --- (Unverändert) ---
-    event.preventDefault();
-// ... (Restlicher Code für handleDropOnChat) ...
-    event.stopPropagation(); 
-    event.currentTarget.classList.remove('gemini-chat-drag-over');
-    
-    const draggedChatId = event.dataTransfer.getData("text/gemini-chat-id");
-    const targetChatId = event.currentTarget.dataset.chatId;
-
-    if (!draggedChatId || !targetChatId || draggedChatId === targetChatId) {
-        return; 
-    }
-    
-    const { chatFolderMap, defaultFolderId } = await getChatFolderMap();
-    const newFolderId = chatFolderMap.get(targetChatId) || defaultFolderId;
-
-    await moveChatToFolder(draggedChatId, newFolderId);
+  await chrome.storage.local.set({ 'folderStructure': structure });
+  await syncFullListOrder();
 }

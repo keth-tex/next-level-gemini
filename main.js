@@ -1,5 +1,12 @@
-// === GLOBALE VARIABLEN FÜR OBSERVER-LOGIK ===
-let mainObserver; 
+/**
+ * main.js
+ * Entry point of the extension.
+ * Handles the central MutationObserver to inject components (Buttons, Resizer, Folders)
+ * into the Gemini DOM as it renders.
+ */
+
+// === GLOBAL VARIABLES FOR OBSERVER LOGIC ===
+let mainObserver;
 
 const mainObserverConfig = {
   childList: true,
@@ -7,154 +14,137 @@ const mainObserverConfig = {
   attributes: false
 };
 
-// === KOMBINIERTE INJEKTIONS-LOGIK ===
+// === COMBINED INJECTION LOGIC ===
 
 function injectionLogic() {
-  
-  // 1. Download-Button-Logik
+
+  // 1. Export Button Logic
   try {
     const reliableElement = document.querySelector('div[data-test-id="pillbox"]');
     const buttonWrapper = document.getElementById('gemini-tex-export-button-wrapper');
     const mainContainer = reliableElement ? reliableElement.parentElement : null;
+
     if (reliableElement && mainContainer && !buttonWrapper) {
+      // createExportButton is defined in feature-export.js
       console.log("Gemini Exporter: Pillbox found. Injecting button.");
-      const buttonElement = createExportButton(); // Aus feature-export.js
+      const buttonElement = createExportButton();
       mainContainer.prepend(buttonElement);
     }
   } catch (e) {
-    console.error("Fehler bei Button-Injektion:", e);
+    console.error("Error injecting export button:", e);
   }
 
-  // 2. Sidebar-Resizer-Logik
+  // 2. Sidebar Resizer Logic
   try {
     const sidebarEl = document.querySelector('bard-sidenav');
     const resizerEl = document.getElementById('gemini-sidebar-resizer');
+
     if (sidebarEl) {
-      const isOpen = sidebarEl.offsetWidth > 100; 
+      const isOpen = sidebarEl.offsetWidth > 100;
       if (isOpen && !resizerEl) {
         console.log("Gemini Exporter: Sidebar opened. Injecting resizer.");
         const resizer = document.createElement('div');
         resizer.id = 'gemini-sidebar-resizer';
-        resizer.addEventListener('mousedown', startDrag); // Aus feature-resizer.js
-        resizer.addEventListener('dblclick', autoResizeSidebar); // Aus feature-resizer.js
+        
+        // Event listeners from feature-resizer.js
+        resizer.addEventListener('mousedown', startDrag);
+        resizer.addEventListener('dblclick', autoResizeSidebar);
+        
         sidebarEl.appendChild(resizer);
-        applySavedWidth(sidebarEl); // Aus feature-resizer.js
+        applySavedWidth(sidebarEl);
       } else if (!isOpen && resizerEl) {
         console.log("Gemini Exporter: Sidebar closed. Cleaning up resizer.");
         resizerEl.remove();
       }
     } else if (resizerEl) {
-        console.log("Gemini Exporter: Sidebar not found. Cleaning up resizer.");
-        resizerEl.remove();
+      console.log("Gemini Exporter: Sidebar not found. Cleaning up resizer.");
+      resizerEl.remove();
     }
   } catch (e) {
-      console.error("Fehler bei Resizer-Injektion:", e);
+    console.error("Error injecting resizer:", e);
   }
-  
-  
-// 3. "Neuer Ordner"-Button, Ordner-Header UND Start des Prozesses
+
+  // 3. Folder Button, Folder Headers AND Process Start
   try {
     const conversationContainer = document.querySelector('.conversations-container');
     const loadingContentSpinnerContainer = document.querySelector('.loading-content-spinner-container');
-    
-    if (conversationContainer) {
-      const parent = conversationContainer.parentElement;
 
-      // --- MODIFIZIERUNG HIER ---
-      // Prüft auf die neue Wrapper-ID statt auf die Button-ID
+    if (conversationContainer) {
+      // Check for the new wrapper ID instead of the button ID
       if (!document.getElementById('new-folder-button-wrapper') && loadingContentSpinnerContainer) {
-      // --- ENDE MODIFIZIERUNG ---
-        console.log("Gemini Exporter: Injiziere 'Neuer Ordner'-Button.");
+        console.log("Gemini Exporter: Injecting 'New Folder' button.");
+        // createFolderButton is defined in folders-ui.js
         loadingContentSpinnerContainer.after(createFolderButton());
       }
-      
-      if (!isObservingChats) {
-          isObservingChats = true;
-          
-          console.log("Gemini Exporter: Setze Container auf FLEX und starte Observer.");
-          
-          conversationContainer.style.display = 'flex';
-          conversationContainer.style.flexDirection = 'column';
 
-          // Starte die Kette: Ordner schließen, Header rendern, Observer starten
-          prepareFoldersAndStartSync(); // Aus feature-folders.js
+      if (!isObservingChats) {
+        isObservingChats = true;
+
+        console.log("Gemini Exporter: Setting container to FLEX and starting observer.");
+
+        conversationContainer.style.display = 'flex';
+        conversationContainer.style.flexDirection = 'column';
+
+        // Start the chain: Close folders, render headers, start observer
+        // prepareFoldersAndStartSync is defined in feature-folders.js
+        prepareFoldersAndStartSync();
 
         const bardSidenav = document.querySelector('bard-sidenav');
 
         if (bardSidenav) {
-            // --- NEUER GAP-FIX START ---
-            bardSidenav.addEventListener('dragenter', (event) => {
-                // Verhindert, dass der Container selbst als
-                // "aktives" Drop-Ziel erscheint (z.B. Hintergrund ändert)
-                if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
-                    event.preventDefault();
-                }
-            });
+          // --- GAP FIX START ---
+          bardSidenav.addEventListener('dragenter', (event) => {
+            // Prevent container from becoming an active drop target
+            if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
+              event.preventDefault();
+            }
+          });
 
-            bardSidenav.addEventListener('dragover', (event) => {
-                // Wir erlauben das "dragover" nur, wenn ein Chat gezogen wird
-                if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move"; 
-                }
-            });
+          bardSidenav.addEventListener('dragover', (event) => {
+            // Allow "dragover" only if a chat is being dragged
+            if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }
+          });
 
-            bardSidenav.addEventListener('drop', (event) => {
-                // Verhindern, dass der Browser auf einen Drop in der Lücke
-                // reagiert (z.B. als Navigation).
-                if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
-                    event.preventDefault(); 
-                    // Der Drop "verpufft" einfach in der Lücke.
-                }
-            });
-            // --- NEUER GAP-FIX ENDE ---
+          bardSidenav.addEventListener('drop', (event) => {
+            // Prevent browser navigation on drop in the gap
+            if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
+              event.preventDefault();
+            }
+          });
+          // --- GAP FIX END ---
         }
-
-          // Rendere Header (wird auch versteckt sein)
-          // renderInitialFolders(); // Aus feature-folders.js
-          
-          // Starte den Observer NUR für Chat-Änderungen (Sortierung)
-          // chatObserver = new MutationObserver(handleChatListMutations); // 'chatObserver' & 'handleChatListMutations' aus feature-folders.js
-          // chatObserver.observe(conversationContainer, chatObserverConfig); // 'chatObserverConfig' aus feature-folders.js
-
-          // --- MODIFIKATION: "FORCE-SCROLL" STARTEN ---
-                // Statt eines passiven Timers starten wir jetzt
-                // aktiv den Ladevorgang.
-                // console.log("Gemini Exporter: Starte 'Force-Scroll', um alle Chats zu laden...");
-                // forceLoadAllChats(); // NEUE FUNKTION (aus feature-folders.js)
-                // --- ENDE MODIFIKATION ---
-          
-          // Führe eine erste Synchronisierung aus (sortiert die ersten Elemente, während sie noch unsichtbar sind)
-          // triggerDebouncedSync(); // Aus feature-folders.js
       }
 
-      // --- MODIFIZIERTE FOUC-LOGIK ---
-      // Dieser mainObserver-Lauf sieht *jede* Mutation (Batches, Spinner, Empty-State).
-      // Solange Mutationen stattfinden, wird der Reveal-Timer zurückgesetzt.
-      if (!isInitialSortComplete) { // aus feature-folders.js
-          if (revealTimer) clearTimeout(revealTimer); // revealTimer aus feature-folders.js
-          
-          // Starte den "Ruhe"-Timer. Wenn 750ms lang nichts passiert, wird aufgedeckt.
-          revealTimer = setTimeout(revealContainer, REVEAL_SETTLE_TIME); // revealContainer & REVEAL_SETTLE_TIME aus feature-folders.js
-      }
-      // --- ENDE FOUC-LOGIK ---
+      // --- FOUC LOGIC ---
+      // This mainObserver run sees *every* mutation (batches, spinner, empty state).
+      // While mutations are happening, the reveal timer is reset.
+      if (!isInitialSortComplete) {
+        if (revealTimer) clearTimeout(revealTimer);
 
+        // Start "settle" timer. If nothing happens for 500ms, reveal content.
+        // revealTimer and revealContainer are defined in feature-folders.js
+        revealTimer = setTimeout(revealContainer, REVEAL_SETTLE_TIME);
+      }
+      // --- END FOUC LOGIC ---
     }
-  } catch(e) {
-    console.error("Fehler bei 'Neuer Ordner'-Button-Injektion:", e);
+  } catch (e) {
+    console.error("Error injecting folder button:", e);
   }
 }
 
-// Startet den Observer SOFORT, ohne auf DOMContentLoaded zu warten.
+// Start Observer IMMEDIATELY, without waiting for DOMContentLoaded.
 if (document.documentElement) {
-    mainObserver = new MutationObserver(injectionLogic);
-    
-    // Wir beobachten document.documentElement (<html>),
-    // da document.body bei document_start evtl. noch nicht existiert.
-    mainObserver.observe(document.documentElement, mainObserverConfig);
-    
-    // Führe eine erste Prüfung durch, falls Teile schon da sind
-    injectionLogic();
+  mainObserver = new MutationObserver(injectionLogic);
+
+  // Observe document.documentElement (<html>) because document.body 
+  // might not exist at document_start.
+  mainObserver.observe(document.documentElement, mainObserverConfig);
+
+  // Perform initial check in case parts are already present
+  injectionLogic();
 } else {
-    console.error("Gemini Exporter: Konnte document.documentElement nicht finden, um Observer zu starten.");
+  console.error("Gemini Exporter: Could not find document.documentElement to start observer.");
 }
