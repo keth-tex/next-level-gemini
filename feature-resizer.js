@@ -8,7 +8,7 @@
 
 const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 800;
-const SIDEBAR_PADDING_BUFFER = 94;
+const SIDEBAR_PADDING_BUFFER = 95;
 let sidebarToResize;
 let startWidth;
 let startX;
