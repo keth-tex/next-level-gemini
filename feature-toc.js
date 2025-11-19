@@ -1,19 +1,13 @@
 /**
  * feature-toc.js
- * Implements a Table of Contents (TOC) for the chat.
- * Includes robust logic to position the mode switcher button using JS calculations.
+ * Implements a Table of Contents (TOC).
+ * NOTE: Mode switcher positioning is now handled via CSS in content.css!
  */
 
 // Global State
 let tocObserver = null;
 let tocScrollDebounce = null;
-let sideNavObserver = null;
-let switcherObserver = null;
-
-// Track currently observed elements to avoid duplicate bindings
 let currentScrollElement = null;
-let currentChatAppElement = null;
-let currentSwitcherElement = null;
 
 // Unique Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
@@ -24,15 +18,12 @@ const TOC_PROMPT_SELECTOR = '.query-text';
 const TOC_MIN_WIDTH = 200;
 const TOC_MAX_WIDTH = 800;
 const TOC_DEFAULT_WIDTH = 308; 
-const TOC_DEFAULT_SIDEBAR_WIDTH = 308;
-const TOC_STANDARD_DIFF = 236; 
 
 // Resizer State
 let tocResizerDOM = null;
 let isTOCResizing = false;
 let tocStartX = 0;
 let tocStartWidth = 0;
-let isUpdatingSwitcher = false;
 
 /**
  * Initializes the Table of Contents.
@@ -44,38 +35,13 @@ function initTOC() {
   
   // Initialize CSS variable (safe)
   applySavedTOCWidth();
-
-  // Check/Start observers (now strictly idempotent)
-  initObserversDirectly();
+  
+  // Only TOC observer remains
+  waitForElement(TOC_CHAT_SCROLLER_SELECTOR, (element) => {
+      startTOCObserver(element);
+  });
 }
 
-/**
- * Sets up observers. 
- * Using waitForElement to handle async loading of Gemini components.
- */
-function initObserversDirectly() {
-    // 1. Scroll Container (TOC Content)
-    waitForElement(TOC_CHAT_SCROLLER_SELECTOR, (element) => {
-        startTOCObserver(element);
-    });
-
-    // 2. Chat App (Sidebar Toggle State)
-    waitForElement('chat-app', (element) => {
-        startSideNavObserver(element);
-    });
-
-    // 3. Mode Switcher (Button Position)
-    waitForElement('bard-mode-switcher', (element) => {
-        startSwitcherObserver(element);
-        // Perform one update to ensure correct position on load
-        updateModeSwitcherPosition();
-    });
-}
-
-/**
- * Helper: Waits for an element to appear.
- * Fires callback immediately if already present.
- */
 function waitForElement(selector, callback) {
     const element = document.querySelector(selector);
     if (element) {
@@ -186,113 +152,21 @@ function updateTOC() {
 function startTOCObserver(element) {
     // If we are already observing THIS element, do nothing.
     if (tocObserver && currentScrollElement === element) return;
-    
-    // If we were observing a DIFFERENT element, clean up.
-    if (tocObserver) {
-        tocObserver.disconnect();
-    }
+    if (tocObserver) tocObserver.disconnect();
 
     currentScrollElement = element;
-    console.log("Gemini TOC: Starting Content Observer.");
-    
     tocObserver = new MutationObserver((mutations) => {
       if (tocScrollDebounce) clearTimeout(tocScrollDebounce);
       tocScrollDebounce = setTimeout(() => updateTOC(), 500);
     });
     tocObserver.observe(element, { childList: true, subtree: true });
-    
-    // Initial update
     setTimeout(() => updateTOC(), 500);
-}
-
-function startSideNavObserver(element) {
-    if (sideNavObserver && currentChatAppElement === element) return;
-    
-    if (sideNavObserver) sideNavObserver.disconnect();
-    
-    currentChatAppElement = element;
-    console.log("Gemini TOC: Starting SideNav Observer.");
-
-    sideNavObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            if (mutation.attributeName === 'class') {
-                updateModeSwitcherPosition();
-            }
-        }
-    });
-    sideNavObserver.observe(element, { attributes: true, attributeFilter: ['class'] });
-}
-
-function startSwitcherObserver(element) {
-    if (switcherObserver && currentSwitcherElement === element) return;
-
-    if (switcherObserver) switcherObserver.disconnect();
-
-    currentSwitcherElement = element;
-    console.log("Gemini TOC: Starting Switcher Observer.");
-
-    switcherObserver = new MutationObserver((mutations) => {
-        if (isUpdatingSwitcher) return;
-        updateModeSwitcherPosition();
-    });
-    switcherObserver.observe(element, { attributes: true, attributeFilter: ['style'] });
 }
 
 // === RESIZER & POSITION LOGIC ===
 
-/**
- * Updates the Mode Switcher position.
- */
-function updateModeSwitcherPosition() {
-  const switcher = document.querySelector('bard-mode-switcher');
-  const chatApp = document.querySelector('chat-app');
-  const sidenav = document.querySelector('bard-sidenav');
-  const rootStyle = document.documentElement.style;
-
-  if (!switcher) return;
-
-  isUpdatingSwitcher = true;
-
-  const isSideNavOpen = chatApp && chatApp.classList.contains('side-nav-open');
-  
-  // Read TOC Width
-  const rawTocWidth = rootStyle.getPropertyValue('--gemini-toc-width');
-  const tocWidth = rawTocWidth ? parseFloat(rawTocWidth) : TOC_DEFAULT_WIDTH;
-
-  let totalShift = 0;
-
-  if (isSideNavOpen) {
-      // OPEN: Diff + TOC
-      let diff = TOC_STANDARD_DIFF;
-      
-      if (sidenav) {
-          const rawDiff = sidenav.style.getPropertyValue('--bard-sidenav-open-closed-width-diff');
-          if (rawDiff) {
-              diff = parseFloat(rawDiff);
-          } else {
-               // Fallback
-               const compDiff = getComputedStyle(sidenav).getPropertyValue('--bard-sidenav-open-closed-width-diff');
-               if(compDiff && compDiff !== '0px') diff = parseFloat(compDiff);
-          }
-      }
-      totalShift = diff + tocWidth;
-      
-  } else {
-      // CLOSED: TOC only
-      totalShift = tocWidth;
-  }
-
-  switcher.style.transform = `translateX(${totalShift}px)`;
-  
-  // Release lock
-  setTimeout(() => { isUpdatingSwitcher = false; }, 0);
-}
-
-window.updateModeSwitcherPosition = updateModeSwitcherPosition;
-
 function applySavedTOCWidth() {
   if (isTOCResizing) return;
-
   chrome.storage.local.get('geminiTOCWidth', (data) => {
     let savedWidth = TOC_DEFAULT_WIDTH;
     if (data.geminiTOCWidth) {
@@ -301,7 +175,6 @@ function applySavedTOCWidth() {
       if (savedWidth > TOC_MAX_WIDTH) savedWidth = TOC_MAX_WIDTH;
     }
     document.documentElement.style.setProperty('--gemini-toc-width', savedWidth + 'px');
-    updateModeSwitcherPosition();
   });
 }
 
@@ -330,7 +203,7 @@ function handleTOCDrag(e) {
   if (newWidth > TOC_MAX_WIDTH) newWidth = TOC_MAX_WIDTH;
   
   document.documentElement.style.setProperty('--gemini-toc-width', newWidth + 'px');
-  updateModeSwitcherPosition(); 
+  // CSS Variable automatically updates layout, no JS call needed
 }
 
 function stopTOCDrag() {
@@ -352,11 +225,9 @@ function stopTOCDrag() {
 function syncTOCWidthToNav(e) {
   e.preventDefault();
   const nav = document.querySelector('bard-sidenav');
-  
   if (nav) {
     const currentNavWidth = nav.getBoundingClientRect().width;
     document.documentElement.style.setProperty('--gemini-toc-width', currentNavWidth + 'px');
-    updateModeSwitcherPosition();
     chrome.storage.local.set({ 'geminiTOCWidth': currentNavWidth });
   }
 }

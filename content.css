@@ -496,3 +496,58 @@ input-area-v2 {
 .text-input-field {
   padding: 18px 24px !important;
 }
+
+/* === 13. SIDEBAR COLLAPSED STATE FIX === */
+/* Versteckt den "Neuer Ordner"-Button und die Ordner-Header, 
+   wenn die Seitenleiste eingeklappt ist (Klasse .collapsed).
+   Behebt das "Hüpfen" des New-Chat-Icons und das Überlappen.
+*/
+.sidenav-with-history-container.collapsed #new-folder-button-wrapper,
+.sidenav-with-history-container.collapsed .folder-header {
+  display: none !important;
+}
+
+/* === 14. FIX: ICON CONTAINER HEIGHT === */
+/* Verhindert, dass Flexbox die inneren Container auf 34px streckt.
+   Zwingt sie auf die native Höhe von ca. 27px zurück.
+*/
+.side-nav-action-collapsed-button .xap-count-badge-container,
+.side-nav-action-collapsed-button .icon-container {
+    height: 27px !important;
+    min-height: 0 !important; /* Überschreibt eventuelle Material-Defaults */
+    
+    /* Stellt sicher, dass das Icon in den 27px vertikal mittig bleibt */
+    display: flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+    
+    /* Optional: Verhindert, dass Line-Height das Layout aufbläht */
+    line-height: 0 !important; 
+}
+
+/* === 14. FIX: MODE SWITCHER POSITION === */
+/* Standard: Sidebar OFFEN */
+:root {
+  --gemini-sidenav-diff: 236px; 
+  --gemini-switcher-offset: var(--gemini-sidenav-diff);
+}
+
+/* Override: Sidebar GESCHLOSSEN (basiert auf deinem HTML-Snippet .collapsed) */
+body:has(.sidenav-with-history-container.collapsed) {
+  --gemini-switcher-offset: 0px;
+}
+
+bard-mode-switcher {
+  /* WICHTIG: !important überschreibt den Inline-Style von Gemini */
+  transition: transform 300ms cubic-bezier(0.2, 0, 0, 1) !important;
+  transform: translateX(calc(var(--gemini-switcher-offset) + var(--gemini-toc-width))) !important;
+  
+  /* Stabilität erzwingen */
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Animation deaktivieren beim manuellen Ziehen (Resizing) */
+.gemini-resizing bard-mode-switcher {
+  transition: none !important;
+}
