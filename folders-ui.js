@@ -22,7 +22,7 @@ function createFolderButton() {
 
   // 3. Create the icon container
   const iconContainer = document.createElement('div');
-  iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start new-folder-icon';
+  iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start new-folder-icon-container';
 
   // 4. Create the <mat-icon> element
   const icon = document.createElement('mat-icon');

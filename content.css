@@ -40,7 +40,7 @@
   transform: translateX(-50%) scale(1);
 }
 
-/* === 2. SIDEBAR RESIZER === */
+/* === 2. RESIZERS === */
 @keyframes change-cursor {
   from {
     cursor: default;
@@ -50,7 +50,7 @@
   }
 }
 
-#gemini-sidebar-resizer {
+#gemini-sidebar-resizer, #gemini-toc-resizer {
   position: absolute;
   top: 0;
   right: -50px;
@@ -60,11 +60,11 @@
   cursor: default;
 }
 
-#gemini-sidebar-resizer:hover {
+#gemini-sidebar-resizer:hover, #gemini-toc-resizer:hover {
   animation: change-cursor 0s linear 250ms forwards;
 }
 
-#gemini-sidebar-resizer::before {
+#gemini-sidebar-resizer::before, #gemini-toc-resizer::before {
   content: '';
   position: absolute;
   top: 0;
@@ -85,7 +85,7 @@
   transition: opacity 500ms ease 0s;
 }
 
-#gemini-sidebar-resizer:hover::before {
+#gemini-sidebar-resizer:hover::before, #gemini-toc-resizer:hover::before {
   opacity: 1;
   transition: opacity 500ms ease 250ms;
 }
@@ -327,7 +327,7 @@ mat-drawer.mat-drawer-opened {
   color: var(--gem-sys-color--on-surface-variant) !important;
 }
 
-.icon-container {
+.new-folder-icon-container {
   margin-left: 14px !important;
   width: 20px !important;
   line-height: 24px !important;
@@ -341,17 +341,24 @@ mat-drawer.mat-drawer-opened {
 
 /* Main Container for the TOC */
 #gemini-toc-container {
-  width: 480px;
-  min-width: 260px;
+  /* Use CSS Variable for width, default to 308px (matches Nav default) */
+  width: var(--gemini-toc-width, 308px);
+  
+  /* Allow resizing down to 200px */
+  min-width: 200px;
   
   /* Prevent the TOC from being crushed to 0 width by the flex layout */
   flex-shrink: 0; 
   
+  /* Position relative to allow absolute positioning of the resizer */
+  position: relative;
+  
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible !important;
   box-sizing: border-box;
+  z-index: 90 !important;
   
   /* Visuals matching the sidebar background */
   background-color: var(--gem-sys-color--surface-container);
@@ -373,12 +380,17 @@ mat-drawer.mat-drawer-opened {
   color: #dde2e9; /* Explicit color from folder names */
   
   background-color: transparent;
+  
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .gemini-toc-list {
   padding: 0;
   margin: 0;
   overflow-y: scroll; /* Allow scrolling within the TOC */
+  overflow-x: hidden;
   flex-grow: 1;
   display: block;
   padding-top: 0px !important;

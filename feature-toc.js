@@ -1,116 +1,157 @@
 /**
  * feature-toc.js
  * Implements a Table of Contents (TOC) for the chat.
- * It scans the chat history for prompts and creates a clickable list
- * inserted between the sidebar and the main chat area.
+ * Includes robust logic to position the mode switcher button using JS calculations.
  */
 
+// Global State
 let tocObserver = null;
 let tocScrollDebounce = null;
-let currentScrollContainer = null; // Tracks the DOM element we are currently observing
+let sideNavObserver = null;
+let switcherObserver = null;
 
-// Configuration constants
+// Track currently observed elements to avoid duplicate bindings
+let currentScrollElement = null;
+let currentChatAppElement = null;
+let currentSwitcherElement = null;
+
+// Unique Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
-const CHAT_SCROLLER_SELECTOR = 'infinite-scroller.chat-history';
-const CONVERSATION_BLOCK_SELECTOR = '.conversation-container';
-const PROMPT_SELECTOR = '.query-text';
+const TOC_CHAT_SCROLLER_SELECTOR = 'infinite-scroller.chat-history';
+const TOC_CONVERSATION_BLOCK_SELECTOR = '.conversation-container';
+const TOC_PROMPT_SELECTOR = '.query-text';
+
+const TOC_MIN_WIDTH = 200;
+const TOC_MAX_WIDTH = 800;
+const TOC_DEFAULT_WIDTH = 308; 
+const TOC_DEFAULT_SIDEBAR_WIDTH = 308;
+const TOC_STANDARD_DIFF = 236; 
+
+// Resizer State
+let tocResizerDOM = null;
+let isTOCResizing = false;
+let tocStartX = 0;
+let tocStartWidth = 0;
+let isUpdatingSwitcher = false;
 
 /**
  * Initializes the Table of Contents.
- * Called from main.js when the sidebar container is detected.
+ * Designed to be called repeatedly without side effects (idempotent).
  */
 function initTOC() {
-  // 1. Try to inject the container DOM structure
+  // Inject structure (idempotent internally)
   injectTOCContainer();
+  
+  // Initialize CSS variable (safe)
+  applySavedTOCWidth();
 
-  // 2. Note: We do NOT call updateTOC() here directly anymore to prevent 
-  //    race conditions or UI freezing during initial load.
-  //    The observer below will handle the first population.
-
-  // 3. Start observing the chat for changes (new messages, loading history)
-  startTOCObserver();
+  // Check/Start observers (now strictly idempotent)
+  initObserversDirectly();
 }
 
 /**
- * Injects the TOC container into the Gemini sidebar layout.
- * It places the TOC between the sidebar (<bard-sidenav>) and the content (<bard-sidenav-content>).
+ * Sets up observers. 
+ * Using waitForElement to handle async loading of Gemini components.
  */
+function initObserversDirectly() {
+    // 1. Scroll Container (TOC Content)
+    waitForElement(TOC_CHAT_SCROLLER_SELECTOR, (element) => {
+        startTOCObserver(element);
+    });
+
+    // 2. Chat App (Sidebar Toggle State)
+    waitForElement('chat-app', (element) => {
+        startSideNavObserver(element);
+    });
+
+    // 3. Mode Switcher (Button Position)
+    waitForElement('bard-mode-switcher', (element) => {
+        startSwitcherObserver(element);
+        // Perform one update to ensure correct position on load
+        updateModeSwitcherPosition();
+    });
+}
+
+/**
+ * Helper: Waits for an element to appear.
+ * Fires callback immediately if already present.
+ */
+function waitForElement(selector, callback) {
+    const element = document.querySelector(selector);
+    if (element) {
+        callback(element);
+        return;
+    }
+
+    // If not found, watch for it.
+    // Note: We don't cache this observer because it disconnects itself instantly upon success.
+    const observer = new MutationObserver((mutations, obs) => {
+        const el = document.querySelector(selector);
+        if (el) {
+            obs.disconnect();
+            callback(el);
+        }
+    });
+    
+    // Observe documentElement because body might not exist yet
+    observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true
+    });
+}
+
 function injectTOCContainer() {
-  // Check if the container already exists to prevent duplicates
   if (document.getElementById(TOC_CONTAINER_ID)) return;
 
-  // Target the parent container that holds sidebar and content
   const sidenavContainer = document.querySelector('bard-sidenav-container');
   const sidenavContent = document.querySelector('bard-sidenav-content');
 
   if (sidenavContainer && sidenavContent) {
-    console.log("Gemini TOC: Injecting TOC container between Sidebar and Content.");
-    
-    // Create the main container div
     const tocContainer = document.createElement('div');
     tocContainer.id = TOC_CONTAINER_ID;
     
-    // Create the header "Inhalt"
+    const resizer = document.createElement('div');
+    resizer.id = 'gemini-toc-resizer';
+    resizer.addEventListener('mousedown', startTOCDrag);
+    resizer.addEventListener('dblclick', syncTOCWidthToNav);
+    tocContainer.appendChild(resizer);
+    
     const header = document.createElement('div');
     header.className = 'gemini-toc-header';
     header.textContent = 'Inhalt';
     tocContainer.appendChild(header);
 
-    // Create the list wrapper.
-    // We use the same class structure as the "New Folder" list wrapper 
-    // to inherit potentially useful Material styles, though we override most layout.
     const listWrapper = document.createElement('div');
     listWrapper.className = 'mat-mdc-action-list mat-mdc-list-base mdc-list gemini-toc-list';
     listWrapper.setAttribute('role', 'group');
     tocContainer.appendChild(listWrapper);
 
-    // Insert the TOC container BEFORE the content, creating the column layout
     sidenavContainer.insertBefore(tocContainer, sidenavContent);
-    
-  } else {
-    // If we can't find the container, we can't inject.
-    // console.debug("Gemini TOC: Could not find bard-sidenav-container or content.");
   }
 }
 
-/**
- * Scans the chat history and updates the TOC list.
- * This creates a button for every user prompt found in the chat.
- */
 function updateTOC() {
   const tocList = document.querySelector(`#${TOC_CONTAINER_ID} .gemini-toc-list`);
   if (!tocList) return;
 
-  // Find all conversation blocks in the chat history
-  const blocks = document.querySelectorAll(CONVERSATION_BLOCK_SELECTOR);
+  const blocks = document.querySelectorAll(TOC_CONVERSATION_BLOCK_SELECTOR);
   
-  // Clear the current list to rebuild it
-  // (Optimization possible: Diffing instead of clearing, but usually fast enough)
+  // Simple Diff: If count matches, assume no change to avoid redraw (optional optimization)
+  // For now, we rebuild but assume the loop is fixed.
+  
   tocList.innerHTML = '';
 
   blocks.forEach((block, index) => {
-    const promptEl = block.querySelector(PROMPT_SELECTOR);
-    // Skip blocks without a prompt (e.g., system messages or loading states)
+    const promptEl = block.querySelector(TOC_PROMPT_SELECTOR);
     if (!promptEl) return;
 
-    // Ensure the target block has an ID so we can scroll to it easily
-    if (!block.id) {
-      block.id = `gemini-conversation-block-${index}`;
-    }
+    if (!block.id) block.id = `gemini-conversation-block-${index}`;
 
-    // Use innerText to preserve newlines from <p> tags,
-    // BUT replace multiple consecutive newlines with a single one to avoid large gaps.
     const text = promptEl.innerText.trim().replace(/\n+/g, '\n');
     
-    // Create the button element.
-    // We use the EXACT class structure of the "New Folder" button to match its style foundation.
     const button = document.createElement('button');
-    
-    // 'gemini-toc-item' is our custom class for overrides (text wrap, colors).
     button.className = 'mat-mdc-list-item mdc-list-item mat-ripple side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mat-mdc-list-item-single-line mdc-list-item--with-one-line gemini-toc-item';
     
-    // Inner structure: Content Span > Unscoped Content > Text Span
-    // This nesting is required by Google's Material Design CSS.
     const contentSpan = document.createElement('span');
     contentSpan.className = 'mdc-list-item__content';
     
@@ -118,25 +159,20 @@ function updateTOC() {
     unscopedSpan.className = 'mat-mdc-list-item-unscoped-content mdc-list-item__primary-text';
     
     const textSpan = document.createElement('span');
-    textSpan.className = 'gds-body-m'; // Inherit font style
+    textSpan.className = 'gds-body-m';
     textSpan.textContent = text;
     
-    // Assemble the text structure
     unscopedSpan.appendChild(textSpan);
     contentSpan.appendChild(unscopedSpan);
     
-    // Focus indicator for accessibility/keyboard nav
     const focusIndicator = document.createElement('div');
     focusIndicator.className = 'mat-focus-indicator';
     
     button.appendChild(contentSpan);
     button.appendChild(focusIndicator);
 
-    // Add Click Handler: Scroll to the conversation block
     button.addEventListener('click', () => {
       block.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      
-      // Update active state visual
       document.querySelectorAll('.gemini-toc-item.active').forEach(el => el.classList.remove('active'));
       button.classList.add('active');
     });
@@ -145,39 +181,182 @@ function updateTOC() {
   });
 }
 
-/**
- * Sets up a MutationObserver on the chat scroll container.
- * This ensures the TOC updates automatically when new messages appear or history loads.
- */
-function startTOCObserver() {
-  // Query for the CURRENT scroll container in the DOM
-  const scrollContainer = document.querySelector(CHAT_SCROLLER_SELECTOR);
-  
-  // Check if the container has changed since the last observation (New Chat Scenario)
-  if (tocObserver && currentScrollContainer !== scrollContainer) {
-    console.log("Gemini TOC: Chat container changed/reset. Restarting observer.");
-    tocObserver.disconnect();
-    tocObserver = null;
-    currentScrollContainer = null;
-  }
+// --- OBSERVERS (Strict Idempotency) ---
 
-  // If we have a container and no active observer, start one
-  if (scrollContainer && !tocObserver) {
-    console.log("Gemini TOC: Starting observer on chat history.");
-    currentScrollContainer = scrollContainer; // Update reference
+function startTOCObserver(element) {
+    // If we are already observing THIS element, do nothing.
+    if (tocObserver && currentScrollElement === element) return;
+    
+    // If we were observing a DIFFERENT element, clean up.
+    if (tocObserver) {
+        tocObserver.disconnect();
+    }
+
+    currentScrollElement = element;
+    console.log("Gemini TOC: Starting Content Observer.");
     
     tocObserver = new MutationObserver((mutations) => {
-      // Use debounce to prevent excessive updates during rapid scrolling or loading
       if (tocScrollDebounce) clearTimeout(tocScrollDebounce);
-      tocScrollDebounce = setTimeout(() => {
-        updateTOC();
-      }, 500);
+      tocScrollDebounce = setTimeout(() => updateTOC(), 500);
     });
-
-    // Observe childList (for new message blocks) and subtree (for content changes)
-    tocObserver.observe(scrollContainer, { childList: true, subtree: true });
+    tocObserver.observe(element, { childList: true, subtree: true });
     
-    // Trigger one initial update shortly after observing starts to catch existing content
-    setTimeout(() => updateTOC(), 1000);
+    // Initial update
+    setTimeout(() => updateTOC(), 500);
+}
+
+function startSideNavObserver(element) {
+    if (sideNavObserver && currentChatAppElement === element) return;
+    
+    if (sideNavObserver) sideNavObserver.disconnect();
+    
+    currentChatAppElement = element;
+    console.log("Gemini TOC: Starting SideNav Observer.");
+
+    sideNavObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.attributeName === 'class') {
+                updateModeSwitcherPosition();
+            }
+        }
+    });
+    sideNavObserver.observe(element, { attributes: true, attributeFilter: ['class'] });
+}
+
+function startSwitcherObserver(element) {
+    if (switcherObserver && currentSwitcherElement === element) return;
+
+    if (switcherObserver) switcherObserver.disconnect();
+
+    currentSwitcherElement = element;
+    console.log("Gemini TOC: Starting Switcher Observer.");
+
+    switcherObserver = new MutationObserver((mutations) => {
+        if (isUpdatingSwitcher) return;
+        updateModeSwitcherPosition();
+    });
+    switcherObserver.observe(element, { attributes: true, attributeFilter: ['style'] });
+}
+
+// === RESIZER & POSITION LOGIC ===
+
+/**
+ * Updates the Mode Switcher position.
+ */
+function updateModeSwitcherPosition() {
+  const switcher = document.querySelector('bard-mode-switcher');
+  const chatApp = document.querySelector('chat-app');
+  const sidenav = document.querySelector('bard-sidenav');
+  const rootStyle = document.documentElement.style;
+
+  if (!switcher) return;
+
+  isUpdatingSwitcher = true;
+
+  const isSideNavOpen = chatApp && chatApp.classList.contains('side-nav-open');
+  
+  // Read TOC Width
+  const rawTocWidth = rootStyle.getPropertyValue('--gemini-toc-width');
+  const tocWidth = rawTocWidth ? parseFloat(rawTocWidth) : TOC_DEFAULT_WIDTH;
+
+  let totalShift = 0;
+
+  if (isSideNavOpen) {
+      // OPEN: Diff + TOC
+      let diff = TOC_STANDARD_DIFF;
+      
+      if (sidenav) {
+          const rawDiff = sidenav.style.getPropertyValue('--bard-sidenav-open-closed-width-diff');
+          if (rawDiff) {
+              diff = parseFloat(rawDiff);
+          } else {
+               // Fallback
+               const compDiff = getComputedStyle(sidenav).getPropertyValue('--bard-sidenav-open-closed-width-diff');
+               if(compDiff && compDiff !== '0px') diff = parseFloat(compDiff);
+          }
+      }
+      totalShift = diff + tocWidth;
+      
+  } else {
+      // CLOSED: TOC only
+      totalShift = tocWidth;
+  }
+
+  switcher.style.transform = `translateX(${totalShift}px)`;
+  
+  // Release lock
+  setTimeout(() => { isUpdatingSwitcher = false; }, 0);
+}
+
+window.updateModeSwitcherPosition = updateModeSwitcherPosition;
+
+function applySavedTOCWidth() {
+  if (isTOCResizing) return;
+
+  chrome.storage.local.get('geminiTOCWidth', (data) => {
+    let savedWidth = TOC_DEFAULT_WIDTH;
+    if (data.geminiTOCWidth) {
+      savedWidth = parseInt(data.geminiTOCWidth, 10);
+      if (savedWidth < TOC_MIN_WIDTH) savedWidth = TOC_MIN_WIDTH;
+      if (savedWidth > TOC_MAX_WIDTH) savedWidth = TOC_MAX_WIDTH;
+    }
+    document.documentElement.style.setProperty('--gemini-toc-width', savedWidth + 'px');
+    updateModeSwitcherPosition();
+  });
+}
+
+function startTOCDrag(e) {
+  e.preventDefault();
+  tocResizerDOM = document.getElementById(TOC_CONTAINER_ID);
+  if (!tocResizerDOM) return;
+
+  tocStartX = e.clientX;
+  tocStartWidth = tocResizerDOM.offsetWidth;
+  isTOCResizing = true;
+
+  document.addEventListener('mousemove', handleTOCDrag);
+  document.addEventListener('mouseup', stopTOCDrag);
+  document.documentElement.classList.add('gemini-resizing');
+}
+
+function handleTOCDrag(e) {
+  if (!isTOCResizing || !tocResizerDOM) return;
+  
+  const currentX = e.clientX;
+  const deltaX = currentX - tocStartX;
+  let newWidth = tocStartWidth + deltaX;
+  
+  if (newWidth < TOC_MIN_WIDTH) newWidth = TOC_MIN_WIDTH;
+  if (newWidth > TOC_MAX_WIDTH) newWidth = TOC_MAX_WIDTH;
+  
+  document.documentElement.style.setProperty('--gemini-toc-width', newWidth + 'px');
+  updateModeSwitcherPosition(); 
+}
+
+function stopTOCDrag() {
+  if (isTOCResizing) {
+    const rootStyle = getComputedStyle(document.documentElement);
+    const val = rootStyle.getPropertyValue('--gemini-toc-width');
+    if (val) {
+        const finalWidth = parseInt(val, 10);
+        chrome.storage.local.set({ 'geminiTOCWidth': finalWidth });
+    }
+  }
+  isTOCResizing = false;
+  tocResizerDOM = null;
+  document.removeEventListener('mousemove', handleTOCDrag);
+  document.removeEventListener('mouseup', stopTOCDrag);
+  document.documentElement.classList.remove('gemini-resizing');
+}
+
+function syncTOCWidthToNav(e) {
+  e.preventDefault();
+  const nav = document.querySelector('bard-sidenav');
+  
+  if (nav) {
+    const currentNavWidth = nav.getBoundingClientRect().width;
+    document.documentElement.style.setProperty('--gemini-toc-width', currentNavWidth + 'px');
+    updateModeSwitcherPosition();
+    chrome.storage.local.set({ 'geminiTOCWidth': currentNavWidth });
   }
 }

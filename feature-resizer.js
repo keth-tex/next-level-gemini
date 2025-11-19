@@ -9,9 +9,35 @@
 const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 800;
 const SIDEBAR_PADDING_BUFFER = 95;
+const DEFAULT_SIDEBAR_WIDTH = 308; 
+const RESIZER_STANDARD_DIFF = 236; // (308 - 68)
+
 let sidebarToResize;
 let startWidth;
 let startX;
+
+/**
+ * Helper function to update both the width and the transform diff.
+ * This ensures the toggle button (<bard-mode-switcher>) moves with the resizer.
+ */
+function updateSidebarStyle(sidebarEl, width) {
+  if (!sidebarEl) return;
+  
+  // 1. Set the new sidebar width
+  sidebarEl.style.setProperty('--bard-sidenav-open-width', width + 'px');
+  
+  // 2. Calculate diff
+  // Formula: Standard Diff (240) + (Change in Width)
+  const diff = RESIZER_STANDARD_DIFF + (width - DEFAULT_SIDEBAR_WIDTH);
+  
+  // 3. Set the variable for Gemini's internal layout
+  sidebarEl.style.setProperty('--bard-sidenav-open-closed-width-diff', diff + 'px');
+  
+  // 4. Update Mode Switcher position immediately
+  if (typeof window.updateModeSwitcherPosition === 'function') {
+    window.updateModeSwitcherPosition();
+  }
+}
 
 function startDrag(e) {
   e.preventDefault();
@@ -30,7 +56,9 @@ function handleDrag(e) {
   let newWidth = startWidth + deltaX;
   if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
   if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
-  sidebarToResize.style.setProperty('--bard-sidenav-open-width', newWidth + 'px');
+  
+  // Use helper to update styles
+  updateSidebarStyle(sidebarToResize, newWidth);
 }
 
 function stopDrag() {
@@ -54,7 +82,9 @@ function applySavedWidth(sidebarEl) {
       if (savedWidth < MIN_SIDEBAR_WIDTH) savedWidth = MIN_SIDEBAR_WIDTH;
       if (savedWidth > MAX_SIDEBAR_WIDTH) savedWidth = MAX_SIDEBAR_WIDTH;
       console.log(`Gemini Exporter: Applying saved width (${savedWidth}px)`);
-      sidebarEl.style.setProperty('--bard-sidenav-open-width', savedWidth + 'px');
+      
+      // Use helper to update styles
+      updateSidebarStyle(sidebarEl, savedWidth);
     }
   });
 }
@@ -66,7 +96,7 @@ function autoResizeSidebar(e) {
 
   const titles = sidebarEl.querySelectorAll('.conversation-title');
   if (titles.length === 0) {
-    console.warn("Gemini Exporter: Could not find conversation titles (.conversation-title) for auto-resize.");
+    console.warn("Gemini Exporter: Could not find conversation titles for auto-resize.");
     return;
   }
 
@@ -103,11 +133,12 @@ function autoResizeSidebar(e) {
   if (maxTextWidth === 0) return;
 
   let newWidth = maxTextWidth + SIDEBAR_PADDING_BUFFER;
-  console.log(`Gemini Exporter: maxTextWidth: (${maxTextWidth}px); SIDEBAR_PADDING_BUFFER: (${SIDEBAR_PADDING_BUFFER}px)`);
   if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
   if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
 
-  sidebarEl.style.setProperty('--bard-sidenav-open-width', newWidth + 'px');
+  // Use helper to update styles
+  updateSidebarStyle(sidebarEl, newWidth);
+  
   chrome.storage.local.set({ 'geminiSidebarWidth': newWidth }, () => {
     console.log(`Gemini Exporter: Sidebar auto-resized and saved (${newWidth}px)`);
   });
