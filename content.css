@@ -330,11 +330,12 @@ mat-drawer.mat-drawer-opened {
 .new-folder-icon-container {
   margin-left: 14px !important;
   width: 20px !important;
-  line-height: 24px !important;
+  /* height: 20px !important; */
+  /* line-height: 24px !important; */
 }
 
 .new-folder-icon {
-  height: 21px !important;
+  height: 20px !important;
 }
 
 /* === 11. TABLE OF CONTENTS (TOC) === */
@@ -511,18 +512,30 @@ input-area-v2 {
 /* Verhindert, dass Flexbox die inneren Container auf 34px streckt.
    Zwingt sie auf die native Höhe von ca. 27px zurück.
 */
+.side-nav-action-collapsed-button {
+  display: flex !important;
+  margin-left: 18px !important;
+}
+
+.icon-container,
 .side-nav-action-collapsed-button .xap-count-badge-container,
 .side-nav-action-collapsed-button .icon-container {
-    height: 27px !important;
-    min-height: 0 !important; /* Überschreibt eventuelle Material-Defaults */
-    
-    /* Stellt sicher, dass das Icon in den 27px vertikal mittig bleibt */
-    display: flex !important; 
-    align-items: center !important;
-    justify-content: center !important;
-    
-    /* Optional: Verhindert, dass Line-Height das Layout aufbläht */
-    line-height: 0 !important; 
+  /* WICHTIG: Flexbox aktivieren, um das Icon darin zu zentrieren */
+  display: flex !important;
+  align-items: center !important;   /* Vertikale Zentrierung */
+  /* justify-content: center !important; /* Horizontale Zentrierung */
+  
+  /* Alte Line-Height Regel entfernen, da sie oft stört */
+  height: auto !important;
+  line-height: normal !important; 
+}
+
+.side-nav-action-collapsed-button .xap-count-badge-container,
+.side-nav-action-collapsed-button .icon-container {
+  height: 27px !important;
+  /* min-height: 0 !important; /* Überschreibt eventuelle Material-Defaults */
+
+  /* justify-content: center !important; */
 }
 
 /* === 14. FIX: MODE SWITCHER POSITION === */
@@ -537,7 +550,7 @@ body:has(.sidenav-with-history-container.collapsed) {
   --gemini-switcher-offset: 0px;
 }
 
-bard-mode-switcher {
+.side-nav-menu-button bard-mode-switcher {
   /* WICHTIG: !important überschreibt den Inline-Style von Gemini */
   transition: transform 300ms cubic-bezier(0.2, 0, 0, 1) !important;
   transform: translateX(calc(var(--gemini-switcher-offset) + var(--gemini-toc-width))) !important;
@@ -548,6 +561,10 @@ bard-mode-switcher {
 }
 
 /* Animation deaktivieren beim manuellen Ziehen (Resizing) */
-.gemini-resizing bard-mode-switcher {
+.gemini-resizing .side-nav-menu-button bard-mode-switcher {
   transition: none !important;
+}
+
+location-footer {
+    max-width: 428px !important;
 }
