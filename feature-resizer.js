@@ -1,6 +1,7 @@
 /**
  * feature-resizer.js
  * Handles the Sidebar Resizer functionality AND exports a generic Resizer class.
+ * Updates global CSS variables for cross-component positioning.
  */
 
 // === GENERIC RESIZER CLASS (Shared Logic) ===
@@ -77,17 +78,18 @@ function updateSidebarStyle(width, sidebarEl = null) {
   const el = sidebarEl || document.querySelector('bard-sidenav');
   if (!el) return;
   
-  // 1. Set Sidebar Width
+  // 1. Set Sidebar Width (Local - for Gemini)
   el.style.setProperty('--bard-sidenav-open-width', width + 'px');
   
-  // 2. Calculate Diff for Switcher
+  // 2. Calculate Diff
   const diff = RESIZER_STANDARD_DIFF + (width - DEFAULT_SIDEBAR_WIDTH);
   
   // 3. Set internal Gemini variable
   el.style.setProperty('--bard-sidenav-open-closed-width-diff', diff + 'px');
   
-  // 4. Set global variable for CSS positioning
+  // 3. GLOBAL VARIABLES (Fixes Resizer & Switcher Positioning)
   document.documentElement.style.setProperty('--gemini-sidenav-diff', diff + 'px');
+  document.documentElement.style.setProperty('--gemini-global-sidebar-width', width + 'px');
 }
 
 // Initialize the Resizer for Sidebar
@@ -98,7 +100,7 @@ const sidebarResizer = new GeminiResizer({
   onUpdate: (width, target) => updateSidebarStyle(width, target)
 });
 
-// === EXPOSED FUNCTIONS FOR MAIN.JS ===
+// === EXPOSED FUNCTIONS ===
 
 function startDrag(e) {
   // main.js attaches this to the handle, parent is the sidebar
@@ -108,12 +110,14 @@ function startDrag(e) {
 function applySavedWidth(sidebarEl) {
   if (!sidebarEl) return;
   chrome.storage.local.get('geminiSidebarWidth', (data) => {
+    let savedWidth = DEFAULT_SIDEBAR_WIDTH;
     if (data.geminiSidebarWidth) {
-      let savedWidth = parseInt(data.geminiSidebarWidth, 10);
+      savedWidth = parseInt(data.geminiSidebarWidth, 10);
       if (savedWidth < MIN_SIDEBAR_WIDTH) savedWidth = MIN_SIDEBAR_WIDTH;
       if (savedWidth > MAX_SIDEBAR_WIDTH) savedWidth = MAX_SIDEBAR_WIDTH;
-      updateSidebarStyle(savedWidth, sidebarEl);
     }
+    // Apply immediately
+    updateSidebarStyle(savedWidth, sidebarEl);
   });
 }
 

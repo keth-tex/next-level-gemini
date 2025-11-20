@@ -1,53 +1,83 @@
 /**
  * feature-toc.js
  * Implements a Table of Contents (TOC).
- * Uses GeminiResizer from feature-resizer.js for drag logic.
+ * Uses global flag window.isGeminiModifyingDOM to prevent observer loops.
  */
 
 // Global State
 let tocObserver = null;
 let tocScrollDebounce = null;
 let currentScrollElement = null;
+let isTOCOpen = true;
 
 // Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
+const TOC_TOGGLE_BUTTON_ID = 'gemini-toc-toggle-button';
 const TOC_CHAT_SCROLLER_SELECTOR = 'infinite-scroller.chat-history';
 const TOC_CONVERSATION_BLOCK_SELECTOR = '.conversation-container';
 const TOC_PROMPT_SELECTOR = '.query-text';
+const SIDEBAR_ACTION_LIST_SELECTOR = 'mat-action-list.desktop-controls';
 
 const TOC_MIN_WIDTH = 200;
 const TOC_MAX_WIDTH = 800;
 const TOC_DEFAULT_WIDTH = 308; 
 
-// === TOC RESIZER SETUP ===
-// Instantiate the shared class
+// === RESIZER SETUP ===
 const tocResizer = new GeminiResizer({
     min: TOC_MIN_WIDTH,
     max: TOC_MAX_WIDTH,
     storageKey: 'geminiTOCWidth',
     onUpdate: (width) => {
-         // Update CSS Variable directly
          document.documentElement.style.setProperty('--gemini-toc-width', width + 'px');
     }
 });
 
 function startTOCDrag(e) {
-    // Use the shared class instance
     tocResizer.start(e, document.getElementById(TOC_CONTAINER_ID));
 }
 
 // === INITIALIZATION ===
 
 function initTOC() {
-  // Inject structure (idempotent internally)
-  injectTOCContainer();
-  
-  // Initialize CSS variable (safe)
-  applySavedTOCWidth();
-  
-  // Only TOC observer remains
-  waitForElement(TOC_CHAT_SCROLLER_SELECTOR, (element) => {
-      startTOCObserver(element);
+  // Check 1: Already existing?
+  if (document.getElementById(TOC_CONTAINER_ID)) {
+      // Ensure button is there (soft check)
+      if (!document.getElementById(TOC_TOGGLE_BUTTON_ID)) {
+          injectSidebarButton();
+      }
+      updateTOCState(); // Check visual state
+      return;
+  }
+
+  // Check 2: Already running?
+  if (window.isInitializingTOC) return;
+  window.isInitializingTOC = true;
+
+  chrome.storage.local.get('geminiTOCOpen', (data) => {
+    if (data.geminiTOCOpen !== undefined) {
+      isTOCOpen = data.geminiTOCOpen;
+    }
+    
+    // DOM Modification Block Start
+    window.isGeminiModifyingDOM = true;
+    try {
+        applySavedTOCWidth();
+        injectTOCContainer(); 
+    } finally {
+        window.isGeminiModifyingDOM = false;
+    }
+    
+    // Button injection might be async if list not ready
+    injectSidebarButton();
+    
+    // State update (classes)
+    updateTOCState();
+    
+    waitForElement(TOC_CHAT_SCROLLER_SELECTOR, (element) => {
+        startTOCObserver(element);
+    });
+    
+    window.isInitializingTOC = false;
   });
 }
 
@@ -57,9 +87,6 @@ function waitForElement(selector, callback) {
         callback(element);
         return;
     }
-
-    // If not found, watch for it.
-    // Note: We don't cache this observer because it disconnects itself instantly upon success.
     const observer = new MutationObserver((mutations, obs) => {
         const el = document.querySelector(selector);
         if (el) {
@@ -67,12 +94,7 @@ function waitForElement(selector, callback) {
             callback(el);
         }
     });
-    
-    // Observe documentElement because body might not exist yet
-    observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true
-    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 function injectTOCContainer() {
@@ -85,34 +107,123 @@ function injectTOCContainer() {
     const tocContainer = document.createElement('div');
     tocContainer.id = TOC_CONTAINER_ID;
     
+    // Maske für sauberes Clipping
+    const mask = document.createElement('div');
+    mask.className = 'gemini-toc-mask';
+    tocContainer.appendChild(mask);
+    
+    // Resizer (Geschwister der Maske)
     const resizer = document.createElement('div');
     resizer.id = 'gemini-toc-resizer';
+    resizer.className = 'gemini-resizer-handle';
     resizer.addEventListener('mousedown', startTOCDrag);
     resizer.addEventListener('dblclick', syncTOCWidthToNav);
     tocContainer.appendChild(resizer);
     
+    // Inhalt in die Maske
     const header = document.createElement('div');
     header.className = 'gemini-toc-header';
     header.textContent = 'Inhalt';
-    tocContainer.appendChild(header);
+    mask.appendChild(header); 
 
     const listWrapper = document.createElement('div');
     listWrapper.className = 'mat-mdc-action-list mat-mdc-list-base mdc-list gemini-toc-list';
     listWrapper.setAttribute('role', 'group');
-    tocContainer.appendChild(listWrapper);
+    mask.appendChild(listWrapper);
 
     sidenavContainer.insertBefore(tocContainer, sidenavContent);
   }
 }
+
+function injectSidebarButton() {
+  if (document.getElementById(TOC_TOGGLE_BUTTON_ID)) return;
+
+  waitForElement(SIDEBAR_ACTION_LIST_SELECTOR, (actionList) => {
+      if (document.getElementById(TOC_TOGGLE_BUTTON_ID)) return;
+
+      window.isGeminiModifyingDOM = true; // Lock Observer
+      try {
+          const wrapper = document.createElement('side-nav-action-button');
+          wrapper.className = 'ia-redesign ng-star-inserted'; 
+          
+          const buttonHTML = `
+            <button id="${TOC_TOGGLE_BUTTON_ID}" class="mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line gemini-toc-sidebar-btn" type="button" aria-label="Inhaltsverzeichnis umschalten">
+                <div class="mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start">
+                    <mat-icon class="mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color" aria-hidden="true" data-mat-icon-type="font">${isTOCOpen ? 'chevron_left' : 'chevron_right'}</mat-icon>
+                </div>
+                <span class="mdc-list-item__content">
+                    <span class="mat-mdc-list-item-unscoped-content mdc-list-item__primary-text">Inhaltsverzeichnis</span>
+                </span>
+                <div class="mat-focus-indicator"></div>
+            </button>
+          `;
+          
+          wrapper.innerHTML = buttonHTML;
+          const btn = wrapper.querySelector('button');
+          btn.addEventListener('click', toggleTOC);
+          
+          actionList.prepend(wrapper);
+      } finally {
+          window.isGeminiModifyingDOM = false; // Unlock
+      }
+  });
+}
+
+function toggleTOC(e) {
+  // Prevent Default wichtig bei Buttons in Forms/Listen
+  if(e) { e.preventDefault(); e.stopPropagation(); }
+  
+  isTOCOpen = !isTOCOpen;
+  chrome.storage.local.set({ 'geminiTOCOpen': isTOCOpen });
+  updateTOCState();
+}
+
+function updateTOCState() {
+    window.isGeminiModifyingDOM = true; // Lock
+    try {
+        const container = document.getElementById(TOC_CONTAINER_ID);
+        const btn = document.getElementById(TOC_TOGGLE_BUTTON_ID);
+
+        if (isTOCOpen) {
+            // OPEN
+            if (document.body.classList.contains('gemini-toc-closed')) {
+                document.body.classList.remove('gemini-toc-closed');
+            }
+            if (container && container.classList.contains('collapsed')) {
+                container.classList.remove('collapsed');
+            }
+            if (btn) {
+                const icon = btn.querySelector('mat-icon');
+                if (icon && icon.textContent !== 'chevron_left') icon.textContent = 'chevron_left';
+            }
+        } else {
+            // CLOSED
+            if (!document.body.classList.contains('gemini-toc-closed')) {
+                document.body.classList.add('gemini-toc-closed');
+            }
+            if (container && !container.classList.contains('collapsed')) {
+                container.classList.add('collapsed');
+            }
+            if (btn) {
+                const icon = btn.querySelector('mat-icon');
+                if (icon && icon.textContent !== 'chevron_right') icon.textContent = 'chevron_right';
+            }
+        }
+    } finally {
+        window.isGeminiModifyingDOM = false; // Unlock
+    }
+}
+
+// ... (updateTOC, startTOCObserver, applySavedTOCWidth, syncTOCWidthToNav - UNCHANGED) ...
 
 function updateTOC() {
   const tocList = document.querySelector(`#${TOC_CONTAINER_ID} .gemini-toc-list`);
   if (!tocList) return;
 
   const blocks = document.querySelectorAll(TOC_CONVERSATION_BLOCK_SELECTOR);
-  
-  // Simple Diff: If count matches, assume no change to avoid redraw (optional optimization)
-  // For now, we rebuild but assume the loop is fixed.
+  // Only rebuild if count changed or content different to be super safe, 
+  // but here we just assume content update is necessary.
+  // No global lock needed here as TOC is internal to our container.
   
   tocList.innerHTML = '';
 
@@ -121,7 +232,6 @@ function updateTOC() {
     if (!promptEl) return;
 
     if (!block.id) block.id = `gemini-conversation-block-${index}`;
-
     const text = promptEl.innerText.trim().replace(/\n+/g, '\n');
     
     const button = document.createElement('button');
@@ -156,10 +266,7 @@ function updateTOC() {
   });
 }
 
-// --- OBSERVERS (Strict Idempotency) ---
-
 function startTOCObserver(element) {
-    // If we are already observing THIS element, do nothing.
     if (tocObserver && currentScrollElement === element) return;
     if (tocObserver) tocObserver.disconnect();
 
@@ -172,12 +279,8 @@ function startTOCObserver(element) {
     setTimeout(() => updateTOC(), 500);
 }
 
-// === HELPER LOGIC ===
-
 function applySavedTOCWidth() {
-  // Check if currently resizing is done via class on document
   if (document.documentElement.classList.contains('gemini-resizing')) return;
-  
   chrome.storage.local.get('geminiTOCWidth', (data) => {
     let savedWidth = TOC_DEFAULT_WIDTH;
     if (data.geminiTOCWidth) {

@@ -1,11 +1,13 @@
 /**
  * main.js
  * Entry point of the extension.
- * Handles the central MutationObserver to inject components (Buttons, Resizer, Folders)
- * into the Gemini DOM as it renders.
+ * Handles the central MutationObserver to inject components.
  */
 
-// === GLOBAL VARIABLES FOR OBSERVER LOGIC ===
+// === GLOBAL FLAGS ===
+// Wenn true, ignoriert der Observer Änderungen, um Loops zu verhindern.
+window.isGeminiModifyingDOM = false;
+
 let mainObserver;
 
 const mainObserverConfig = {
@@ -14,9 +16,9 @@ const mainObserverConfig = {
   attributes: false
 };
 
-// === COMBINED INJECTION LOGIC ===
-
 function injectionLogic() {
+  // NOTBREMSE: Wenn wir selbst gerade bauen, ignorieren!
+  if (window.isGeminiModifyingDOM) return;
 
   // 1. Export Button Logic
   try {
@@ -25,8 +27,7 @@ function injectionLogic() {
     const mainContainer = reliableElement ? reliableElement.parentElement : null;
 
     if (reliableElement && mainContainer && !buttonWrapper) {
-      // createExportButton is defined in feature-export.js
-      console.log("Gemini Exporter: Pillbox found. Injecting button.");
+      // console.log("Gemini Exporter: Pillbox found. Injecting button.");
       const buttonElement = createExportButton();
       mainContainer.prepend(buttonElement);
     }
@@ -42,102 +43,66 @@ function injectionLogic() {
     if (sidebarEl) {
       const isOpen = sidebarEl.offsetWidth > 100;
       if (isOpen && !resizerEl) {
-        console.log("Gemini Exporter: Sidebar opened. Injecting resizer.");
+        // console.log("Gemini Exporter: Sidebar opened. Injecting resizer.");
         const resizer = document.createElement('div');
         resizer.id = 'gemini-sidebar-resizer';
+        resizer.className = 'gemini-resizer-handle'; // Shared Class
         
-        // Event listeners from feature-resizer.js
         resizer.addEventListener('mousedown', startDrag);
         resizer.addEventListener('dblclick', autoResizeSidebar);
         
         sidebarEl.appendChild(resizer);
         applySavedWidth(sidebarEl);
       } else if (!isOpen && resizerEl) {
-        console.log("Gemini Exporter: Sidebar closed. Cleaning up resizer.");
         resizerEl.remove();
       }
     } else if (resizerEl) {
-      console.log("Gemini Exporter: Sidebar not found. Cleaning up resizer.");
       resizerEl.remove();
     }
   } catch (e) {
     console.error("Error injecting resizer:", e);
   }
 
-  // 3. Folder Button, Folder Headers AND Process Start
+  // 3. Folder Button & Logic
   try {
     const conversationContainer = document.querySelector('.conversations-container');
     const loadingContentSpinnerContainer = document.querySelector('.loading-content-spinner-container');
 
     if (conversationContainer) {
-      // Check for the new wrapper ID instead of the button ID
       if (!document.getElementById('new-folder-button-wrapper') && loadingContentSpinnerContainer) {
-        console.log("Gemini Exporter: Injecting 'New Folder' button.");
-        // createFolderButton is defined in folders-ui.js
         loadingContentSpinnerContainer.after(createFolderButton());
       }
 
       if (!isObservingChats) {
         isObservingChats = true;
-
-        console.log("Gemini Exporter: Setting container to FLEX and starting observer.");
-
         conversationContainer.style.display = 'flex';
         conversationContainer.style.flexDirection = 'column';
-
-        // Start the chain: Close folders, render headers, start observer
-        // prepareFoldersAndStartSync is defined in feature-folders.js
         prepareFoldersAndStartSync();
 
         const bardSidenav = document.querySelector('bard-sidenav');
-
         if (bardSidenav) {
-          // --- GAP FIX START ---
-          bardSidenav.addEventListener('dragenter', (event) => {
-            // Prevent container from becoming an active drop target
-            if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
-              event.preventDefault();
-            }
+          bardSidenav.addEventListener('dragenter', (e) => { if (e.dataTransfer.types.includes("text/gemini-chat-id")) e.preventDefault(); });
+          bardSidenav.addEventListener('dragover', (e) => { 
+              if (e.dataTransfer.types.includes("text/gemini-chat-id")) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } 
           });
-
-          bardSidenav.addEventListener('dragover', (event) => {
-            // Allow "dragover" only if a chat is being dragged
-            if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-            }
-          });
-
-          bardSidenav.addEventListener('drop', (event) => {
-            // Prevent browser navigation on drop in the gap
-            if (event.dataTransfer.types.includes("text/gemini-chat-id")) {
-              event.preventDefault();
-            }
-          });
-          // --- GAP FIX END ---
+          bardSidenav.addEventListener('drop', (e) => { if (e.dataTransfer.types.includes("text/gemini-chat-id")) e.preventDefault(); });
         }
       }
 
-      // --- FOUC LOGIC ---
-      // This mainObserver run sees *every* mutation (batches, spinner, empty state).
-      // While mutations are happening, the reveal timer is reset.
       if (!isInitialSortComplete) {
         if (revealTimer) clearTimeout(revealTimer);
-
-        // Start "settle" timer. If nothing happens for 500ms, reveal content.
-        // revealTimer and revealContainer are defined in feature-folders.js
         revealTimer = setTimeout(revealContainer, REVEAL_SETTLE_TIME);
       }
-      // --- END FOUC LOGIC ---
     }
   } catch (e) {
     console.error("Error injecting folder button:", e);
   }
 
-  // 4. Table of Contents (NEW)
+  // 4. Table of Contents (TOC)
   try {
-    // We check for the CONTAINER now, as we want to insert INTO it
-    if (document.querySelector('bard-sidenav-container')) {
+    // Nur feuern, wenn der Container da ist, aber TOC noch fehlt
+    if (document.querySelector('bard-sidenav-container') && typeof initTOC === 'function') {
+        // initTOC hat intern eigene Checks, daher sicher aufzurufen
         initTOC();
     }
   } catch (e) {
@@ -145,16 +110,11 @@ function injectionLogic() {
   }
 }
 
-// Start Observer IMMEDIATELY
+// Start Observer
 if (document.documentElement) {
   mainObserver = new MutationObserver(injectionLogic);
-
-  // Observe document.documentElement (<html>) because document.body 
-  // might not exist at document_start.
   mainObserver.observe(document.documentElement, mainObserverConfig);
-
-  // Perform initial check in case parts are already present
   injectionLogic();
 } else {
-  console.error("Gemini Exporter: Could not find document.documentElement to start observer.");
+  console.error("Gemini Exporter: Could not find document.documentElement.");
 }

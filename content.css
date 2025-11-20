@@ -310,7 +310,6 @@ mat-drawer.mat-drawer-opened {
 /* === 10. NEW FOLDER === */
 .new-folder-button {
   height: 40px !important;
-  border-radius: 30px !important;
   margin-left: 12px !important;
   margin-right: 12px !important;
   padding-right: 0px !important;
@@ -340,30 +339,34 @@ mat-drawer.mat-drawer-opened {
 
 /* === 11. TABLE OF CONTENTS (TOC) === */
 
-/* Main Container for the TOC */
+:root {
+  /* Breite des TOC im eingeklappten Zustand: 0, da komplett weg */
+  --gemini-toc-collapsed-width: 0px;
+}
+
 #gemini-toc-container {
   /* Use CSS Variable for width, default to 308px (matches Nav default) */
   width: var(--gemini-toc-width, 308px);
-  
-  /* Allow resizing down to 200px */
-  min-width: 200px;
-  
-  /* Prevent the TOC from being crushed to 0 width by the flex layout */
-  flex-shrink: 0; 
-  
-  /* Position relative to allow absolute positioning of the resizer */
+  min-width: 0px;
+  flex-shrink: 0;
   position: relative;
-  
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: visible !important;
+  overflow: hidden !important; /* Wichtig für saubere Animation */
   box-sizing: border-box;
   z-index: 90 !important;
-  
-  /* Visuals matching the sidebar background */
   background-color: var(--gem-sys-color--surface-container);
-  /* No borders as requested */
+  
+  /* Horizontale Animation */
+  transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+  border-right: 1px solid transparent; /* Optional: Visuelle Trennung */
+}
+
+/* EINGEKLAPPTER ZUSTAND */
+#gemini-toc-container.collapsed {
+  width: 0px !important;
+  min-width: 0px !important;
 }
 
 /* Header "Inhalt" */
@@ -534,37 +537,195 @@ input-area-v2 {
 .side-nav-action-collapsed-button .icon-container {
   height: 27px !important;
   /* min-height: 0 !important; /* Überschreibt eventuelle Material-Defaults */
-
   /* justify-content: center !important; */
 }
 
-/* === 14. FIX: MODE SWITCHER POSITION === */
-/* Standard: Sidebar OFFEN */
+/* === 15. MODE SWITCHER POSITION & TOC TOGGLE === */
+
+/* Basic Variables */
 :root {
   --gemini-sidenav-diff: 236px; 
   --gemini-switcher-offset: var(--gemini-sidenav-diff);
 }
 
-/* Override: Sidebar GESCHLOSSEN (basiert auf deinem HTML-Snippet .collapsed) */
+/* Wenn Sidenav geschlossen */
 body:has(.sidenav-with-history-container.collapsed) {
   --gemini-switcher-offset: 0px;
 }
 
+/* Wenn TOC geschlossen */
+:root { --gemini-toc-effective-width: var(--gemini-toc-width); }
+body.gemini-toc-closed { --gemini-toc-effective-width: 0px; }
+
+/* Switcher Animation */
 .side-nav-menu-button bard-mode-switcher {
-  /* WICHTIG: !important überschreibt den Inline-Style von Gemini */
   transition: transform 300ms cubic-bezier(0.2, 0, 0, 1) !important;
-  transform: translateX(calc(var(--gemini-switcher-offset) + var(--gemini-toc-width))) !important;
-  
-  /* Stabilität erzwingen */
+  transform: translateX(calc(var(--gemini-switcher-offset) + var(--gemini-toc-effective-width))) !important;
   opacity: 1 !important;
   visibility: visible !important;
 }
 
-/* Animation deaktivieren beim manuellen Ziehen (Resizing) */
+/* Animation deaktivieren beim manuellen Ziehen */
 .gemini-resizing .side-nav-menu-button bard-mode-switcher {
   transition: none !important;
 }
 
 location-footer {
     max-width: 428px !important;
+}
+
+/* === 16. TOP BAR ACTIONS & RESIZER GLOBAL LOGIC === */
+
+/* === ERGÄNZUNGEN & FIXES === */
+
+/* 1. CONTAINER & MASKE */
+#gemini-toc-container {
+  width: var(--gemini-toc-width, 308px);
+  min-width: 0px;
+  flex-shrink: 0; 
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  z-index: 90 !important;
+  background-color: var(--gem-sys-color--surface-container);
+  
+  /* WICHTIG: Visible lassen, damit der Resizer nach rechts 'herausragen' kann */
+  overflow: visible !important; 
+  
+  border-right: 1px solid transparent;
+  transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Fix Gummiband-Effekt */
+html.gemini-resizing #gemini-toc-container {
+  transition: none !important;
+}
+
+/* MASKE: Hier wird der Inhalt abgeschnitten */
+.gemini-toc-mask {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden !important; /* Clipping */
+}
+
+#gemini-toc-container.collapsed {
+  width: 0px !important;
+  min-width: 0px !important;
+  border: none !important;
+}
+
+/* 2. TOC RESIZER (Relativ am rechten Rand) */
+#gemini-toc-resizer {
+  position: absolute;
+  top: 0;
+  right: -50px; /* Ragt nach rechts heraus */
+  bottom: 0;
+  width: 50px;
+  z-index: 99;
+  cursor: col-resize;
+  left: auto !important;
+}
+
+body.gemini-toc-closed #gemini-toc-resizer {
+    display: none !important;
+}
+
+/* 3. LISTE (Mit Scrollbar-Platz) */
+.gemini-toc-list {
+  padding: 0; margin: 0;
+  
+  /* WICHTIG: Scrollbar immer erzwingen/reservieren gegen Springen */
+  overflow-y: scroll !important; 
+  overflow-x: hidden;
+  
+  flex-grow: 1; display: block;
+  transition: opacity 0.2s; opacity: 1;
+}
+
+#gemini-toc-container.collapsed .gemini-toc-list,
+#gemini-toc-container.collapsed .gemini-toc-header {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+/* 4. HEADER */
+.gemini-toc-header {
+  padding: 12px 16px;
+  margin-top: 15px; 
+  padding-left: 24px;
+  font-family: var(--mat-list-list-item-label-text-font);
+  font-size: var(--mat-list-list-item-label-text-size);
+  font-weight: 500;
+  color: #dde2e9;
+  background-color: transparent;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+/* 5. TOP BAR ACTIONS */
+:root {
+    --gemini-current-sidebar-width: var(--bard-sidenav-open-width, 308px);
+    --gemini-toc-effective-width: var(--gemini-toc-width); 
+}
+body.gemini-toc-closed { --gemini-toc-effective-width: 0px; }
+body:has(.sidenav-with-history-container.collapsed) {
+    --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
+    --gemini-switcher-offset: 0px;
+}
+
+top-bar-actions {
+    /* Berechnet: Sidebar + TOC */
+    left: calc(var(--gemini-current-sidebar-width) + var(--gemini-toc-effective-width)) !important;
+    transition: left 300ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+.gemini-resizing top-bar-actions { transition: none !important; }
+
+
+/* 6. TOGGLE BUTTON STYLING (Neuer Ordner Copy) */
+
+/* Basis-Styling (aus content.css .new-folder-button übernommen) */
+.gemini-toc-sidebar-btn {
+  height: 40px !important;
+  margin-left: 12px !important;
+  margin-right: 12px !important;
+  padding-right: 0px !important;
+  /* Farben */
+  color: var(--gem-sys-color--on-surface-variant) !important;
+}
+
+.gemini-toc-sidebar-btn .mdc-list-item__primary-text {
+  color: var(--gem-sys-color--on-surface-variant) !important;
+}
+
+/* Icon Container (Flex Zentrierung) */
+.gemini-toc-sidebar-btn .icon-container {
+  margin-left: 14px !important;
+  width: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: normal !important;
+}
+
+/* Icon Größe */
+.gemini-toc-sidebar-btn .mat-icon {
+  height: 20px !important;
+  width: 20px !important;
+  font-size: 20px !important;
+  color: var(--gem-sys-color--on-surface-variant) !important;
+}
+
+/* === VERHALTEN BEI EINGEKLAPPTER SIDEBAR === */
+
+/* Text ausblenden */
+.sidenav-with-history-container.collapsed .gemini-toc-sidebar-btn .mdc-list-item__content {
+    display: none !important;
 }
