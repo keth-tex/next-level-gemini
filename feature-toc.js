@@ -1,7 +1,7 @@
 /**
  * feature-toc.js
  * Implements a Table of Contents (TOC).
- * NOTE: Mode switcher positioning is now handled via CSS in content.css!
+ * Uses GeminiResizer from feature-resizer.js for drag logic.
  */
 
 // Global State
@@ -9,7 +9,7 @@ let tocObserver = null;
 let tocScrollDebounce = null;
 let currentScrollElement = null;
 
-// Unique Constants
+// Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
 const TOC_CHAT_SCROLLER_SELECTOR = 'infinite-scroller.chat-history';
 const TOC_CONVERSATION_BLOCK_SELECTOR = '.conversation-container';
@@ -19,16 +19,25 @@ const TOC_MIN_WIDTH = 200;
 const TOC_MAX_WIDTH = 800;
 const TOC_DEFAULT_WIDTH = 308; 
 
-// Resizer State
-let tocResizerDOM = null;
-let isTOCResizing = false;
-let tocStartX = 0;
-let tocStartWidth = 0;
+// === TOC RESIZER SETUP ===
+// Instantiate the shared class
+const tocResizer = new GeminiResizer({
+    min: TOC_MIN_WIDTH,
+    max: TOC_MAX_WIDTH,
+    storageKey: 'geminiTOCWidth',
+    onUpdate: (width) => {
+         // Update CSS Variable directly
+         document.documentElement.style.setProperty('--gemini-toc-width', width + 'px');
+    }
+});
 
-/**
- * Initializes the Table of Contents.
- * Designed to be called repeatedly without side effects (idempotent).
- */
+function startTOCDrag(e) {
+    // Use the shared class instance
+    tocResizer.start(e, document.getElementById(TOC_CONTAINER_ID));
+}
+
+// === INITIALIZATION ===
+
 function initTOC() {
   // Inject structure (idempotent internally)
   injectTOCContainer();
@@ -163,10 +172,12 @@ function startTOCObserver(element) {
     setTimeout(() => updateTOC(), 500);
 }
 
-// === RESIZER & POSITION LOGIC ===
+// === HELPER LOGIC ===
 
 function applySavedTOCWidth() {
-  if (isTOCResizing) return;
+  // Check if currently resizing is done via class on document
+  if (document.documentElement.classList.contains('gemini-resizing')) return;
+  
   chrome.storage.local.get('geminiTOCWidth', (data) => {
     let savedWidth = TOC_DEFAULT_WIDTH;
     if (data.geminiTOCWidth) {
@@ -176,50 +187,6 @@ function applySavedTOCWidth() {
     }
     document.documentElement.style.setProperty('--gemini-toc-width', savedWidth + 'px');
   });
-}
-
-function startTOCDrag(e) {
-  e.preventDefault();
-  tocResizerDOM = document.getElementById(TOC_CONTAINER_ID);
-  if (!tocResizerDOM) return;
-
-  tocStartX = e.clientX;
-  tocStartWidth = tocResizerDOM.offsetWidth;
-  isTOCResizing = true;
-
-  document.addEventListener('mousemove', handleTOCDrag);
-  document.addEventListener('mouseup', stopTOCDrag);
-  document.documentElement.classList.add('gemini-resizing');
-}
-
-function handleTOCDrag(e) {
-  if (!isTOCResizing || !tocResizerDOM) return;
-  
-  const currentX = e.clientX;
-  const deltaX = currentX - tocStartX;
-  let newWidth = tocStartWidth + deltaX;
-  
-  if (newWidth < TOC_MIN_WIDTH) newWidth = TOC_MIN_WIDTH;
-  if (newWidth > TOC_MAX_WIDTH) newWidth = TOC_MAX_WIDTH;
-  
-  document.documentElement.style.setProperty('--gemini-toc-width', newWidth + 'px');
-  // CSS Variable automatically updates layout, no JS call needed
-}
-
-function stopTOCDrag() {
-  if (isTOCResizing) {
-    const rootStyle = getComputedStyle(document.documentElement);
-    const val = rootStyle.getPropertyValue('--gemini-toc-width');
-    if (val) {
-        const finalWidth = parseInt(val, 10);
-        chrome.storage.local.set({ 'geminiTOCWidth': finalWidth });
-    }
-  }
-  isTOCResizing = false;
-  tocResizerDOM = null;
-  document.removeEventListener('mousemove', handleTOCDrag);
-  document.removeEventListener('mouseup', stopTOCDrag);
-  document.documentElement.classList.remove('gemini-resizing');
 }
 
 function syncTOCWidthToNav(e) {

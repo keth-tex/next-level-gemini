@@ -1,70 +1,108 @@
 /**
  * feature-resizer.js
- * Handles the Sidebar Resizer functionality.
- * Includes drag-to-resize and auto-resize on double click.
+ * Handles the Sidebar Resizer functionality AND exports a generic Resizer class.
  */
 
-// === SIDEBAR RESIZER FUNCTIONS ===
+// === GENERIC RESIZER CLASS (Shared Logic) ===
+window.GeminiResizer = class GeminiResizer {
+  constructor(config) {
+    this.min = config.min || 200;
+    this.max = config.max || 800;
+    this.storageKey = config.storageKey || null;
+    this.onUpdate = config.onUpdate || (() => {});
+    
+    this.isResizing = false;
+    this.target = null;
+    this.startX = 0;
+    this.startWidth = 0;
+
+    // Bindings for event listeners
+    this.handleDrag = this.handleDrag.bind(this);
+    this.stopDrag = this.stopDrag.bind(this);
+  }
+
+  start(e, targetElement) {
+    e.preventDefault();
+    this.target = targetElement;
+    if (!this.target) return;
+
+    this.startX = e.clientX;
+    this.startWidth = this.target.offsetWidth;
+    this.isResizing = true;
+
+    document.addEventListener('mousemove', this.handleDrag);
+    document.addEventListener('mouseup', this.stopDrag);
+    document.documentElement.classList.add('gemini-resizing');
+  }
+
+  handleDrag(e) {
+    if (!this.isResizing) return;
+    const deltaX = e.clientX - this.startX;
+    let newWidth = this.startWidth + deltaX;
+    
+    if (newWidth < this.min) newWidth = this.min;
+    if (newWidth > this.max) newWidth = this.max;
+
+    this.onUpdate(newWidth, this.target);
+  }
+
+  stopDrag(e) {
+    if (this.isResizing && this.target) {
+      // Use actual rendered width for saving to be precise
+      const finalWidth = this.target.offsetWidth;
+      
+      if (this.storageKey) {
+        chrome.storage.local.set({ [this.storageKey]: finalWidth });
+      }
+    }
+    
+    this.isResizing = false;
+    this.target = null;
+    document.removeEventListener('mousemove', this.handleDrag);
+    document.removeEventListener('mouseup', this.stopDrag);
+    document.documentElement.classList.remove('gemini-resizing');
+  }
+};
+
+// === SIDEBAR SPECIFIC CONFIGURATION ===
 
 const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 800;
 const SIDEBAR_PADDING_BUFFER = 95;
 const DEFAULT_SIDEBAR_WIDTH = 308; 
-const RESIZER_STANDARD_DIFF = 236; // (308 - 68)
+const RESIZER_STANDARD_DIFF = 236; 
 
-let sidebarToResize;
-let startWidth;
-let startX;
-
-/**
- * Helper function to update sidebar styles AND global variables for CSS.
- */
-function updateSidebarStyle(sidebarEl, width) {
-  if (!sidebarEl) return;
+// Central helper to update Sidebar styles AND CSS Variables
+function updateSidebarStyle(width, sidebarEl = null) {
+  const el = sidebarEl || document.querySelector('bard-sidenav');
+  if (!el) return;
   
-  // 1. Sidebar Width setzen
-  sidebarEl.style.setProperty('--bard-sidenav-open-width', width + 'px');
+  // 1. Set Sidebar Width
+  el.style.setProperty('--bard-sidenav-open-width', width + 'px');
   
-  // 2. Diff berechnen
+  // 2. Calculate Diff for Switcher
   const diff = RESIZER_STANDARD_DIFF + (width - DEFAULT_SIDEBAR_WIDTH);
   
-  // 3. Variable für Gemini intern (auf Element)
-  sidebarEl.style.setProperty('--bard-sidenav-open-closed-width-diff', diff + 'px');
+  // 3. Set internal Gemini variable
+  el.style.setProperty('--bard-sidenav-open-closed-width-diff', diff + 'px');
   
-  // 4. WICHTIG: Variable global setzen für CSS-Positionierung des Switchers
+  // 4. Set global variable for CSS positioning
   document.documentElement.style.setProperty('--gemini-sidenav-diff', diff + 'px');
 }
 
+// Initialize the Resizer for Sidebar
+const sidebarResizer = new GeminiResizer({
+  min: MIN_SIDEBAR_WIDTH,
+  max: MAX_SIDEBAR_WIDTH,
+  storageKey: 'geminiSidebarWidth',
+  onUpdate: (width, target) => updateSidebarStyle(width, target)
+});
+
+// === EXPOSED FUNCTIONS FOR MAIN.JS ===
+
 function startDrag(e) {
-  e.preventDefault();
-  sidebarToResize = e.target.parentElement;
-  startX = e.clientX;
-  startWidth = sidebarToResize.offsetWidth;
-  document.addEventListener('mousemove', handleDrag);
-  document.addEventListener('mouseup', stopDrag);
-  document.documentElement.classList.add('gemini-resizing');
-}
-
-function handleDrag(e) {
-  if (!sidebarToResize) return;
-  const currentX = e.clientX;
-  const deltaX = currentX - startX;
-  let newWidth = startWidth + deltaX;
-  if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
-  if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
-  
-  updateSidebarStyle(sidebarToResize, newWidth);
-}
-
-function stopDrag() {
-  document.removeEventListener('mousemove', handleDrag);
-  document.removeEventListener('mouseup', stopDrag);
-  document.documentElement.classList.remove('gemini-resizing');
-  if (sidebarToResize) {
-    const finalWidth = sidebarToResize.offsetWidth;
-    chrome.storage.local.set({ 'geminiSidebarWidth': finalWidth });
-  }
-  sidebarToResize = null;
+  // main.js attaches this to the handle, parent is the sidebar
+  sidebarResizer.start(e, e.target.parentElement);
 }
 
 function applySavedWidth(sidebarEl) {
@@ -74,7 +112,7 @@ function applySavedWidth(sidebarEl) {
       let savedWidth = parseInt(data.geminiSidebarWidth, 10);
       if (savedWidth < MIN_SIDEBAR_WIDTH) savedWidth = MIN_SIDEBAR_WIDTH;
       if (savedWidth > MAX_SIDEBAR_WIDTH) savedWidth = MAX_SIDEBAR_WIDTH;
-      updateSidebarStyle(sidebarEl, savedWidth);
+      updateSidebarStyle(savedWidth, sidebarEl);
     }
   });
 }
@@ -87,6 +125,7 @@ function autoResizeSidebar(e) {
   const titles = sidebarEl.querySelectorAll('.conversation-title');
   if (titles.length === 0) return;
 
+  // Measure longest title
   const measurementSpan = document.createElement('span');
   const computedStyle = window.getComputedStyle(titles[0]);
 
@@ -101,6 +140,7 @@ function autoResizeSidebar(e) {
   let maxTextWidth = 0;
   titles.forEach(title => {
     let text = '';
+    // Get direct text node content only
     for (const node of title.childNodes) {
       if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim().length > 0) {
         text = node.nodeValue.trim();
@@ -121,6 +161,6 @@ function autoResizeSidebar(e) {
   if (newWidth < MIN_SIDEBAR_WIDTH) newWidth = MIN_SIDEBAR_WIDTH;
   if (newWidth > MAX_SIDEBAR_WIDTH) newWidth = MAX_SIDEBAR_WIDTH;
 
-  updateSidebarStyle(sidebarEl, newWidth);
+  updateSidebarStyle(newWidth, sidebarEl);
   chrome.storage.local.set({ 'geminiSidebarWidth': newWidth });
 }
