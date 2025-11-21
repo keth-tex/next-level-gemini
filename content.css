@@ -1,742 +1,519 @@
-/* === 1. EXPORT BUTTON TOOLTIP === */
-#gemini-tex-export-button-wrapper {
-  position: relative;
+/* ==========================================================================
+   1. VARIABLES & THEME CONFIGURATION
+   Central definition of all design tokens to facilitate maintenance.
+   ========================================================================== */
+:root {
+  /* --- Colors --- */
+  --gemini-bg-item:               #333;
+  --gemini-bg-item-hover:         #131314;
+  --gemini-bg-item-active:        rgb(31, 55, 96);
+  --gemini-bg-surface:            var(--gem-sys-color--surface-container, #1e1f20);
+  --gemini-bg-actions:            #1e1f20;
+  
+  /* Drag & Drop Colors */
+  --gemini-bg-dnd-chat:           rgba(102, 104, 104, .65);
+
+  /* Text Colors */
+  --gemini-text-primary:          #dde2e9;
+  --gemini-text-variant:          var(--gem-sys-color--on-surface-variant);
+  --gemini-text-selected:         var(--sidenav-button-selected-text-color);
+  --gemini-text-disabled:         #5f6368;
+
+  /* --- Dimensions --- */
+  --gemini-item-height:           40px;
+  --gemini-radius:                8px;
+  --gemini-icon-size:             20px;
+  
+  /* --- Layout & State --- */
+  --gemini-toc-width:             308px; /* Updated via JS */
+  --gemini-sidenav-diff:          236px;
+  --gemini-switcher-offset:       var(--gemini-sidenav-diff);
+  --gemini-current-sidebar-width: var(--bard-sidenav-open-width, 308px);
+  --gemini-toc-effective-width:   var(--gemini-toc-width);
+
+  /* --- Z-Indices --- */
+  --gemini-z-actions:             10;
+  --gemini-z-toc:                 90;
+  --gemini-z-resizer:             99;
 }
 
-.gemini-tex-tooltip {
-  word-break: normal;
-  overflow-wrap: anywhere;
-  padding: 4px 8px;
-  min-width: 40px;
-  max-width: 200px;
-  box-sizing: border-box;
-  overflow: hidden;
-  text-align: center;
-  background-color: var(--mat-tooltip-container-color, var(--mat-sys-inverse-surface));
-  color: var(--mat-tooltip-supporting-text-color, var(--mat-sys-inverse-on-surface));
-  border-radius: var(--mat-tooltip-container-shape, var(--mat-sys-corner-extra-small));
-  font-family: var(--mat-tooltip-supporting-text-font, var(--mat-sys-body-small-font));
-  font-size: var(--mat-tooltip-supporting-text-size, var(--mat-sys-body-small-size));
-  font-weight: var(--mat-tooltip-supporting-text-weight, var(--mat-sys-body-small-weight));
-  line-height: var(--mat-tooltip-supporting-text-line-height, var(--mat-sys-body-small-line-height));
-  letter-spacing: var(--mat-tooltip-supporting-text-tracking, var(--mat-sys-body-small-tracking));
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-top: 10px;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(-50%) scale(0.8);
-  transition: opacity 150ms cubic-bezier(0, 0, 0.2, 1),
-              transform 150ms cubic-bezier(0, 0, 0.2, 1),
-              visibility 150ms cubic-bezier(0, 0, 0.2, 1);
-  pointer-events: none;
-  white-space: nowrap;
+/* State Adjustments for CSS Variables */
+body:has(.sidenav-with-history-container.collapsed) {
+  --gemini-switcher-offset: 0px;
+  --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
+}
+body.gemini-toc-closed {
+  --gemini-toc-effective-width: 0px;
 }
 
-#gemini-tex-export-button-wrapper:hover .gemini-tex-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) scale(1);
-}
 
-/* === 2. RESIZERS === */
-@keyframes change-cursor {
-  from {
-    cursor: default;
-  }
-  to {
-    cursor: col-resize;
-  }
-}
+/* ==========================================================================
+   2. SHARED SIDEBAR ITEM STYLES
+   Consolidates styling for:
+   - "New Folder" Button
+   - "TOC" Button
+   - Folder Headers
+   - TOC List Items
+   ========================================================================== */
 
-#gemini-sidebar-resizer, #gemini-toc-resizer {
-  position: absolute;
-  top: 0;
-  right: -50px;
-  bottom: 0;
-  width: 50px;
-  z-index: 99;
-  cursor: default;
-}
-
-#gemini-sidebar-resizer:hover, #gemini-toc-resizer:hover {
-  animation: change-cursor 0s linear 250ms forwards;
-}
-
-#gemini-sidebar-resizer::before, #gemini-toc-resizer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, .1), rgba(255, 255, 255, .05)),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10' width='12' height='10'%3E%3Cpolygon points='5,0 0,5 5,10' fill='%23666'/%3E%3Cpolygon points='7,0 12,5 7,10' fill='%23666'/%3E%3C/svg%3E");
-  background-size:
-    auto,
-    24px 20px;
-  background-position:
-    center,
-    center;
-  background-repeat: no-repeat;
-  opacity: 0;
-  transition: opacity 500ms ease 0s;
-}
-
-#gemini-sidebar-resizer:hover::before, #gemini-toc-resizer:hover::before {
-  opacity: 1;
-  transition: opacity 500ms ease 250ms;
-}
-
-mat-drawer.mat-drawer-opened {
-  transition: none !important;
-}
-
-/* GLOBAL DRAG STATE FIXES */
-/* Erzwingt den Cursor und verhindert Selektionen während des Ziehens */
-.gemini-resizing body,
-.gemini-resizing body * {
-  user-select: none !important;
-  cursor: col-resize !important;
-}
-
-/* Verhindert Interaktionen (Hover etc.) mit anderen Elementen beim Ziehen */
-.gemini-resizing iframe,
-.gemini-resizing button,
-.gemini-resizing a {
-  pointer-events: none !important;
-}
-
-/* === 3. SCROLLBAR STYLING === */
-@media (pointer: fine) {
-  ::-webkit-scrollbar, ::-webkit-scrollbar-corner {
-    height: 24px !important;
-    width: 24px !important;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: content-box var(--gem-sys-color--surface-container-highest) !important;
-    border: 2px solid transparent;
-    border-radius: 8px !important;
-    min-height: 48px;
-    min-width: 48px;
-  }
-
-  @supports not (selector(::-webkit-scrollbar)) {
-    * {
-      scrollbar-width: auto !important;
-      scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important;
-    }
-  }
-}
-
-/* === 4. "NEW FOLDER" BUTTON & TOC BUTTON === */
-
-/* KILL SWITCH für Material Design Overlays */
-/* Dies entfernt die grauen Schleier, die den Hover-Effekt stören könnten */
-.new-folder-button::before, .new-folder-button::after,
-.gemini-toc-sidebar-btn::before, .gemini-toc-sidebar-btn::after {
-    display: none !important;
-    content: none !important;
-}
-
-/* Basis-Styling (Exakt wie Ordner) */
+/* 2.1 Base appearance for all interactive sidebar items (CONTAINERS) */
 .new-folder-button,
-.gemini-toc-sidebar-btn {
-  background-color: #333 !important; /* Folder Header Background */
-  border-radius: 8px !important;     /* Folder Header Radius */
-  /* color: #dde2e9 !important;         /* Folder Header Text Color */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-  
-  /* Explizite Anforderungen */
-  height: 40px !important;
-  width: 100% !important; /* WICHTIG: Volle Breite wie die Ordner */
-  
-  /* Ränder entfernen, die die Breite einschränken */
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  
-  /* Innenabstände anpassen (Horizontal wie Ordner) */
-  /* padding-left: 16px !important;
-  padding-right: 16px !important; */
-  
-  /* Reset */
+.gemini-toc-sidebar-btn,
+.folder-header,
+.gemini-toc-item {
+  background-color: var(--gemini-bg-item) !important;
+  border-radius: var(--gemini-radius) !important;
+  color: var(--gemini-text-variant) !important;
   border: none !important;
+  cursor: pointer;
+  user-select: none;
+  /* Ensure flex layout is default for all these items */
   display: flex !important;
   align-items: center !important;
-}
-
-/* Hover-Effekt wie bei Ordnern */
-.new-folder-button:hover,
-.gemini-toc-sidebar-btn:hover {
-  /* background-color: var(--gem-sys-color--surface-container-low) !important; /* Folder Hover Color */
-  background-color: #131314 !important;
-}
-
-/* Text-Styling innerhalb der Buttons anpassen */
-.new-folder-button .mdc-list-item__primary-text,
-.gemini-toc-sidebar-btn .mdc-list-item__primary-text,
-.new-folder-button .gds-body-m {
-  /* color: #dde2e9 !important; */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-  font-weight: 500 !important;
-  font-size: 14px !important; /* Explizite Anforderung */
+  
+  /* Apply font-family to container so inputs with 'font: inherit' pick it up */
   font-family: var(--mat-list-list-item-label-text-font) !important;
 }
 
-/* Icon-Styling anpassen (Farbe wie Text) */
-.new-folder-icon,
-.gemini-toc-sidebar-btn .mat-icon {
-  /* color: #dde2e9 !important; */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-  height: 20px !important;
-  width: 20px !important;
-  font-size: 20px !important;
+/* 2.2 Hover States */
+.new-folder-button:hover,
+.gemini-toc-sidebar-btn:hover,
+.folder-header:hover,
+.gemini-toc-item:hover {
+  background-color: var(--gemini-bg-item-hover) !important;
 }
 
-/* Icon Container Zentrierung */
+/* 2.3 Kill Switch for Material Design Overlays (Gray Haze) */
+.new-folder-button::before, .new-folder-button::after,
+.gemini-toc-sidebar-btn::before, .gemini-toc-sidebar-btn::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* 2.4 Text Styling consistency (Shared Base) */
+.new-folder-button .mdc-list-item__primary-text,
+.gemini-toc-sidebar-btn .mdc-list-item__primary-text,
+.new-folder-button .gds-body-m,
+.folder-name,
+.gemini-toc-header {
+  color: var(--gemini-text-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* 2.5 Icon Styling consistency */
+.new-folder-icon,
+.gemini-toc-sidebar-btn .mat-icon,
+.folder-header mat-icon {
+  color: var(--gemini-text-variant) !important;
+  height: var(--gemini-icon-size) !important;
+  width: var(--gemini-icon-size) !important;
+  font-size: var(--gemini-icon-size) !important;
+}
+
+
+/* ==========================================================================
+   3. SPECIFIC COMPONENT ADJUSTMENTS
+   Overrides and specific layout rules for the shared components above.
+   ========================================================================== */
+
+/* 3.1 Sidebar Action Buttons (New Folder & TOC) */
+.new-folder-button,
+.gemini-toc-sidebar-btn {
+  height: var(--gemini-item-height) !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Specific Font Size for Buttons */
+.new-folder-button .mdc-list-item__primary-text,
+.gemini-toc-sidebar-btn .mdc-list-item__primary-text,
+.new-folder-button .gds-body-m {
+  font-size: 14px !important;
+}
+
+/* Icon Containers in Buttons */
 .new-folder-icon-container,
 .gemini-toc-sidebar-btn .icon-container {
-  margin-left: 14px !important; /* Abstand Icon zu Rand/Text justieren */
-  margin-right: 16px !important; /* Abstand Icon zu Rand/Text justieren */
-  width: 20px !important;
+  margin-left: 14px !important;
+  margin-right: 16px !important;
+  width: var(--gemini-icon-size) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 
-/* === 5. ABSTÄNDE (MARGINS) === */
-
-/* Abstand unter "Neuer Chat" */
-.overflow-container > mat-action-list:first-child {
-  margin-bottom: 12px !important;
-}
-
-/* Abstand unter "Gems entdecken" */
-.explore-gems-container {
-  margin-bottom: 12px !important;
-}
-
-/* Abstand unter "Neuer Ordner" (Wrapper) */
-#new-folder-button-wrapper {
-  padding-left: 12px !important;
-  padding-right: 2px !important;
-  margin-bottom: 0px !important; /* Etwas Platz vor den Ordnern/Chats */
-}
-
-#gemini-toc-toggle-button {
-    margin-left: 12px !important;
-    width: calc(100% - 24px) !important;
-}
-
-/* Abstand unter "Inhaltsverzeichnis" */
-/* Das Inhaltsverzeichnis ist das erste Element in der unteren .desktop-controls Liste */
-mat-action-list.desktop-controls > side-nav-action-button:first-child {
-  margin-bottom: 24px !important;
-}
-
-
-/* === 6. FOLDER HEADER STYLING === */
+/* 3.2 Folder Headers */
 .folder-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   padding: 12px 16px;
-  cursor: pointer;
-  user-select: none;
-  position: relative; /* Needed for .folder-actions */
-  font-family: var(--mat-list-list-item-label-text-font);
-  background: #333;
+  gap: 8px;
   margin-top: 12px;
   margin-bottom: 6px;
-  border-radius: 8px;
-}
-
-.folder-header:hover {
-  /* background: var(--gem-sys-color--surface-container-low); */
-  background: #131314 !important;
-}
-
-.folder-header mat-icon {
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
+  position: relative; /* Context for actions menu */
 }
 
 .folder-name {
   flex-grow: 1;
-  font-size: var(--mat-list-list-item-label-text-size);
-  font-weight: 500;
-  color: #dde2e9;
+  font-size: var(--mat-list-list-item-label-text-size) !important;
 }
 
-/* === 7. FOLDER ACTIONS (RENAME, DELETE) === */
-.folder-actions {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: none;
-  pointer-events: auto;
-  background: #1e1f20;
-  border-radius: 4px;
-  z-index: 10;
-}
-
-.folder-header:hover .folder-actions {
-  display: flex;
-}
-
-.folder-actions .action-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #bdc1c6;
-  padding: 4px;
-  margin: 0 2px;
-  border-radius: 50%;
-}
-
-.folder-actions .action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.folder-actions .action-btn:disabled {
-  color: #5f6368;
-  cursor: not-allowed;
-  background: none;
-}
-
-/* Styling for the inline folder edit input */
-.folder-name-input {
-  /* Inherit text styling from parent (font, size) */
-  font: inherit;
-  /* Explicitly adopt text color and weight of folder name */
-  color: var(--gem-sys-color--on-surface-variant);
-  font-weight: 500;
-
-  /* Remove all browser default input styles */
-  border: none;
-  outline: none;
-  background: transparent;
-
-  /* Adjust layout */
-  padding: 0;
-  margin: 0;
-  flex-grow: 1;
-  min-width: 0;
-}
-
-/* === 8. DRAG AND DROP STYLING === */
-.conversation-items-container.gemini-dragging {
-  opacity: 0.5;
-}
-
-.folder-header.gemini-drag-over {
-  border: none !important;
-  outline: none !important;
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 8px !important;
-}
-
-.conversation-items-container.gemini-chat-drag-over {
-  border: none !important;
-  outline: none !important;
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  border-radius: 8px !important;
-}
-
-/* D&D flicker fix (prevents events on child elements) */
-.gemini-chat-is-dragging .folder-header > *,
-.gemini-chat-is-dragging .conversation-items-container > * {
-  pointer-events: none !important;
-}
-
-/* === 9. GRID ANIMATION (AGGRESSIVE FIX) === */
-
-/* 1. Base State */
-.conversation-items-container {
-  display: grid; /* Confirms this works */
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.3s ease-out,
-              opacity 0.2s ease-in-out 0.1s;
-  opacity: 1;
-  overflow: hidden;
-}
-
-/* 2. Base Child State */
-.conversation-items-container > * {
-  /* We animate EVERYTHING to force collapse */
-  transition: opacity 0.2s ease-in-out,
-              visibility 0.2s,
-              height 0.3s ease-out,
-              padding 0.3s ease-out,
-              margin 0.3s ease-out;
-  visibility: visible;
-  opacity: 1;
-  overflow: hidden;
-  min-height: 0; /* Original (insufficient) fix */
-}
-
-/* 3. Closed State (More specific selector) */
-.conversation-items-container.chat-item-rolled-up {
-  grid-template-rows: 0fr !important;
-  opacity: 0 !important;
-  transition-delay: 0s;
-  pointer-events: none !important;
-}
-
-/* 4. Closed Child State (THE ACTUAL FIX) */
-/* Force content height to 0 instead of relying on min-height */
-.conversation-items-container.chat-item-rolled-up > * {
-  visibility: hidden !important;
-  opacity: 0 !important;
-  transition-delay: 0s;
-
-  /* FORCE CONTENT COLLAPSE */
-  height: 0 !important;
-  min-height: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-}
-
-/* Disables collapse animation during D&D */
-.gemini-dnd-no-transition {
-  transition: none !important;
-}
-
-/* === 9. ARROW ANIMATION === */
+/* Folder Arrow Animation */
 .folder-header .folder-toggle-icon {
   transition: transform 0.3s ease !important;
   transform-origin: center !important;
 }
-
 .folder-header.is-open .folder-toggle-icon {
   transform: rotate(90deg) !important;
 }
 
-/* === 10. TABLE OF CONTENTS (TOC) === */
-:root {
-  /* Breite des TOC im eingeklappten Zustand: 0, da komplett weg */
-  --gemini-toc-collapsed-width: 0px;
+/* 3.3 TOC Items */
+.gemini-toc-item {
+  height: auto !important;
+  min-height: var(--gemini-item-height) !important;
+  margin: 6px 0 18px 0 !important;
+  padding: 8px 12px !important;
+  box-sizing: border-box !important;
+  align-items: flex-start !important; /* Multiline text alignment */
+  white-space: normal !important;
+  text-align: left;
 }
 
+.gemini-toc-item .mdc-list-item__primary-text {
+  color: var(--gemini-text-variant) !important;
+  white-space: pre-wrap !important;
+  overflow: visible !important;
+  line-height: 1.4 !important;
+}
+
+/* TOC Active State */
+.gemini-toc-item.active,
+.gemini-toc-item.active .mdc-list-item__primary-text {
+  background-color: var(--gemini-bg-item-active) !important;
+  color: var(--gemini-text-selected) !important;
+}
+
+
+/* ==========================================================================
+   4. LAYOUT, SPACING & MARGINS
+   ========================================================================== */
+
+/* Vertical Spacing corrections */
+.overflow-container > mat-action-list:first-child,
+.explore-gems-container {
+  margin-bottom: 12px !important;
+}
+
+#new-folder-button-wrapper {
+  padding-left: 12px !important;
+  padding-right: 2px !important;
+  margin-bottom: 0px !important;
+}
+
+#gemini-toc-toggle-button {
+  margin-left: 12px !important;
+  width: calc(100% - 24px) !important;
+}
+
+/* Bottom Nav Spacing */
+mat-action-list.desktop-controls > side-nav-action-button:first-child {
+  margin-bottom: 24px !important;
+}
+
+/* Native Element Tweaks */
+.user-query-bubble-with-background {
+  padding: 24px 30px 23px 34px !important;
+}
+input-area-v2 { border-radius: 24px !important; }
+.text-input-field { padding: 18px 24px !important; }
+.explore-gems-container button {
+  width: calc(100% - 14px) !important;
+  margin-right: 2px !important;
+}
+location-footer { max-width: 428px !important; }
+
+/* Global Border Radius Consistency */
+.conversation, .mat-mdc-list-item, .pending-conversation-animation {
+  border-radius: var(--gemini-radius) !important;
+}
+
+
+/* ==========================================================================
+   5. RESIZERS (SIDEBAR & TOC)
+   ========================================================================== */
+
+#gemini-sidebar-resizer, 
+#gemini-toc-resizer {
+  position: absolute;
+  top: 0; right: -50px; bottom: 0;
+  width: 50px;
+  z-index: var(--gemini-z-resizer);
+  cursor: default;
+}
+
+@keyframes change-cursor {
+  from { cursor: default; } to { cursor: col-resize; }
+}
+
+#gemini-sidebar-resizer:hover, 
+#gemini-toc-resizer:hover {
+  animation: change-cursor 0s linear 250ms forwards;
+}
+
+/* Shared Gripper Visuals */
+#gemini-sidebar-resizer::before, 
+#gemini-toc-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, .1), rgba(255, 255, 255, .05)),
+                    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 10' width='12' height='10'%3E%3Cpolygon points='5,0 0,5 5,10' fill='%23666'/%3E%3Cpolygon points='7,0 12,5 7,10' fill='%23666'/%3E%3C/svg%3E");
+  background-size: auto, 24px 20px;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 500ms ease 0s;
+}
+
+#gemini-sidebar-resizer:hover::before, 
+#gemini-toc-resizer:hover::before {
+  opacity: 1;
+  transition: opacity 500ms ease 250ms;
+}
+
+/* Global Resizing State (Cursor Locking) */
+.gemini-resizing body, .gemini-resizing body * {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+.gemini-resizing iframe, .gemini-resizing button, .gemini-resizing a {
+  pointer-events: none !important;
+}
+mat-drawer.mat-drawer-opened { transition: none !important; }
+
+
+/* ==========================================================================
+   6. TABLE OF CONTENTS (CONTAINER & LAYOUT)
+   ========================================================================== */
+
 #gemini-toc-container {
-  /* Use CSS Variable for width, default to 308px (matches Nav default) */
-  width: var(--gemini-toc-width, 308px);
+  width: var(--gemini-toc-width);
   min-width: 0px;
   flex-shrink: 0;
   position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
-  
-  /* WICHTIG: Overflow Visible lassen, damit der Resizer (außerhalb) sichtbar ist */
-  overflow: visible !important; 
-  
+  overflow: visible !important;
   box-sizing: border-box;
-  z-index: 90 !important;
-  background-color: var(--gem-sys-color--surface-container);
-  
-  /* Horizontale Animation */
+  z-index: var(--gemini-z-toc) !important;
+  background-color: var(--gemini-bg-surface);
   transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
-  border-right: 1px solid transparent; /* Optional: Visuelle Trennung */
-}
-
-/* FIX: DEAKTIVIERE Transition beim Ziehen gegen "Lag" */
-html.gemini-resizing #gemini-toc-container {
-  transition: none !important;
+  border-right: 1px solid transparent;
 }
 
 #gemini-toc-container.collapsed {
   width: 0px !important;
-  min-width: 0px !important;
 }
 
-/* === FIX: ANIMATION (SLIDING DOOR) & RESIZER VISIBILITY === */
-
-/* Die Maske übernimmt das Clipping des Inhalts */
+/* Mask for Sliding Door Effect */
 .gemini-toc-mask {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  
   width: 100% !important;
   height: 100%;
-  overflow: hidden !important; /* Hier wird abgeschnitten */
+  overflow: hidden !important;
   box-sizing: border-box;
 }
 
-/* Die Kinder der Maske erzwingen die volle Breite, auch wenn die Maske schrumpft */
+/* Force children to keep width during collapse */
 .gemini-toc-mask > * {
   width: var(--gemini-toc-width, 308px) !important;
   min-width: var(--gemini-toc-width, 308px) !important;
   box-sizing: border-box !important;
 }
 
-/* Header "Inhalt" */
 .gemini-toc-header {
-  /* Padding and Margins to align with sidebar items */
-  padding: 12px 16px;
-  margin-top: 15px; 
-  /* margin-bottom: 2px; */
-  padding-left: 24px;
-  
-  /* Typography matching .folder-name */
-  font-family: var(--mat-list-list-item-label-text-font);
-  font-size: var(--mat-list-list-item-label-text-size);
-  font-weight: 500;
-  color: #dde2e9; /* Explicit color from folder names */
-  
+  padding: 12px 16px 12px 24px;
+  margin-top: 15px;
   background-color: transparent;
-  
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-family: var(--mat-list-list-item-label-text-font) !important;
+  font-size: var(--mat-list-list-item-label-text-size) !important;
 }
 
 .gemini-toc-list {
-  padding: 0;
+  padding: 0 2px 8px 12px !important;
   margin: 0;
-  overflow-y: scroll; /* Allow scrolling within the TOC */
+  overflow-y: scroll;
   overflow-x: hidden;
   flex-grow: 1;
   display: block;
-  padding-top: 0px !important;
-  padding-bottom: 8px !important;
-  padding-left: 12px !important;
-  padding-right: 2px !important;
 }
 
-/* Custom Scrollbar for the TOC list to look unobtrusive
-.gemini-toc-list::-webkit-scrollbar {
-  width: 6px;
-}
-.gemini-toc-list::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-} */
 
-/* * TOC ITEMS (.gemini-toc-item)
- * Styled exactly like "New Folder" buttons but with modifications for 
- * text wrapping and no hover color change.
- */
-.gemini-toc-item {
-  /* Allow height to grow with text (overriding fixed 40px from New Folder) */
-  height: auto !important;
-  min-height: 40px !important;
-  margin-top: 6px !important;
-  margin-bottom: 18px !important;
-  
-  /* Ensure padding and border are included in width calculation */
-  box-sizing: border-box !important;
+/* ==========================================================================
+   7. ANIMATIONS & DYNAMIC STATES
+   ========================================================================== */
 
-  /* FIX: Added padding-right to prevent text clipping */
-  padding-right: 12px !important;
-  padding-left: 12px !important; 
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
-  
-  /* Text Color: Forced to stay variant (greyish) */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-  
-  /* Reset button defaults */
-  background-color: #333 !important;
-  border: none;
-  /* width: calc(100% - 24px) !important; Account for margins */
-  text-align: left;
-  cursor: pointer;
-  
-  /* Layout overrides to allow text wrapping */
-  display: flex !important;
-  align-items: flex-start !important; /* Align text to top if multi-line */
-  white-space: normal !important;     /* Allow wrapping */
-}
-
-/* Hover Effect */
-.gemini-toc-item:hover {
-  /* Only change background, NOT text color */
-  /* background-color: rgba(255, 255, 255, 0.08); */
-  /* background: var(--gem-sys-color--surface-container-low) !important; */
-  background-color: #131314 !important;
-  color: var(--gem-sys-color--on-surface-variant) !important;
-}
-
-/* Active State */
-.gemini-toc-item.active {
-  /* background-color: rgba(255, 255, 255, 0.15); */
-  /* background: var(--gem-sys-color--surface-container-low) !important; */
-  /* background-color: #131314 !important; */
-  background-color: rgb(31, 55, 96) !important;
-  /* color: var(--gem-sys-color--on-surface-variant) !important; */
-  color: var(--sidenav-button-selected-text-color) !important;
-  
-  /* Only change text color to bright white when ACTIVE */
-  /* color: var(--gem-sys-color--on-surface) !important; */
-}
-
-.gemini-toc-item.active .mdc-list-item__primary-text {
-  /* color: var(--gem-sys-color--on-surface) !important; */
-  /* color: var(--gem-sys-color--on-surface-variant) !important; */
-  background-color: rgb(31, 55, 96) !important;
-  color: var(--sidenav-button-selected-text-color) !important;
-  /* font-weight: 500; */
-}
-
-/* * Inner Text Span Styling 
- * Ensures the text wraps correctly inside the button structure.
- */
-.gemini-toc-item .mdc-list-item__primary-text {
-  /* Ensure color inheritance */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-  
-  /* Removed 'text-overflow: clip' to avoid cutting letters off */
-  white-space: pre-wrap !important;
-  overflow: visible !important;
-  
-  display: block;
-  width: 100%;
-  line-height: 1.4 !important; /* Better readability for multi-line */
-}
-
-/* === 11. CONVERSATION STYLING === */
-.conversation, .mat-mdc-list-item, .gemini-toc-item, .pending-conversation-animation {
-  border-radius: 8px !important;
-}
-
-.user-query-bubble-with-background {
-  padding-top: 24px !important;
-  padding-bottom: 23px !important;
-  padding-left: 34px !important;
-  padding-right: 30px !important;
-}
-
-input-area-v2 {
-  border-radius: 24px !important;
-}
-
-.text-input-field {
-  padding: 18px 24px !important;
-}
-
-/* === 12. SIDEBAR COLLAPSED STATE FIX (ANIMIERT) === */
-
-/* Base State: Transitionen aktivieren */
+/* 7.1 Sidebar Collapse Animation (Hide Elements) */
 #new-folder-button-wrapper,
 .folder-header {
-  transition: 
-      /* max-height 300ms cubic-bezier(0.2, 0, 0, 1), */
-      margin 300ms cubic-bezier(0.2, 0, 0, 1),
-      padding 300ms cubic-bezier(0.2, 0, 0, 1),
-      opacity 150ms cubic-bezier(0.4, 0.0, 1, 1); /* Fade out faster */
-  
-  /* Explizite Startwerte für die Animation */
-  /* max-height: 80px; */
+  transition: margin 300ms cubic-bezier(0.2, 0, 0, 1),
+              padding 300ms cubic-bezier(0.2, 0, 0, 1),
+              opacity 150ms cubic-bezier(0.4, 0.0, 1, 1);
   opacity: 1;
   overflow: hidden;
 }
 
-/* Collapsed State: Sanftes Schließen */
 .sidenav-with-history-container.collapsed #new-folder-button-wrapper,
 .sidenav-with-history-container.collapsed .folder-header {
-  /* Nicht 'display: none', damit Animation funktioniert */
-  
   opacity: 0 !important;
-  /* max-height: 0px !important; */
-  
-  /* Abstände entfernen */
-  margin-top: 0px !important;
-  margin-bottom: 0px !important;
-  padding-top: 0px !important;
-  padding-bottom: 0px !important;
-  
+  margin: 0 !important;
+  padding: 0 !important;
   border: none !important;
   pointer-events: none !important;
 }
 
-.side-nav-action-collapsed-button {
-  display: flex !important;
-  margin-left: 18px !important;
+/* Hide TOC Button Text when collapsed */
+.sidenav-with-history-container.collapsed .gemini-toc-sidebar-btn .mdc-list-item__content {
+  display: none !important;
 }
 
-.icon-container,
+/* 7.2 Collapsed Button Fixes */
+.side-nav-action-collapsed-button { display: flex !important; margin-left: 18px !important; }
 .side-nav-action-collapsed-button .xap-count-badge-container,
-.side-nav-action-collapsed-button .icon-container {
-  /* WICHTIG: Flexbox aktivieren, um das Icon darin zu zentrieren */
-  display: flex !important;
-  align-items: center !important;   /* Vertikale Zentrierung */
-  /* justify-content: center !important; /* Horizontale Zentrierung */
-  
-  /* Alte Line-Height Regel entfernen, da sie oft stört */
-  height: auto !important;
-  line-height: normal !important; 
+.side-nav-action-collapsed-button .icon-container,
+.icon-container {
+  display: flex !important; align-items: center !important; height: 27px !important; line-height: normal !important;
 }
 
-.side-nav-action-collapsed-button .xap-count-badge-container,
-.side-nav-action-collapsed-button .icon-container {
-  height: 27px !important;
-  /* min-height: 0 !important; /* Überschreibt eventuelle Material-Defaults */
-  /* justify-content: center !important; */
+/* 7.3 Grid Animation (Chat List Roll-up) */
+.conversation-items-container {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s ease-out, opacity 0.2s ease-in-out 0.1s;
+  opacity: 1;
+  overflow: hidden;
 }
 
-/* === 13. MODE SWITCHER POSITION & TOC TOGGLE === */
-
-/* Basic Variables */
-:root {
-  --gemini-sidenav-diff: 236px; 
-  --gemini-switcher-offset: var(--gemini-sidenav-diff);
-  --gemini-current-sidebar-width: var(--bard-sidenav-open-width, 308px);
-  --gemini-toc-effective-width: var(--gemini-toc-width); 
+.conversation-items-container > * {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s, height 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out;
+  visibility: visible;
+  opacity: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
-/* Wenn Sidenav geschlossen */
-body:has(.sidenav-with-history-container.collapsed) {
-  --gemini-switcher-offset: 0px;
-  --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
+/* Collapsed State */
+.conversation-items-container.chat-item-rolled-up {
+  grid-template-rows: 0fr !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.conversation-items-container.chat-item-rolled-up > * {
+  visibility: hidden !important; opacity: 0 !important; height: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important;
 }
 
-body.gemini-toc-closed { --gemini-toc-effective-width: 0px; }
+/* 7.4 Global Transition Disabling (during DnD or Resize) */
+.gemini-dnd-no-transition { transition: none !important; }
 
-/* Switcher Animation */
-.side-nav-menu-button bard-mode-switcher {
-  transition: transform 300ms cubic-bezier(0.2, 0, 0, 1) !important;
-  transform: translateX(calc(var(--gemini-switcher-offset) + var(--gemini-toc-effective-width))) !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Animation deaktivieren beim manuellen Ziehen */
-.gemini-resizing .side-nav-menu-button bard-mode-switcher {
+.gemini-resizing #gemini-toc-container,
+.gemini-resizing .side-nav-menu-button bard-mode-switcher,
+.gemini-resizing top-bar-actions {
   transition: none !important;
 }
 
-location-footer {
-    max-width: 428px !important;
+/* 7.5 Element Positioning (Switcher & Top Bar) */
+.side-nav-menu-button bard-mode-switcher {
+  transition: transform 300ms cubic-bezier(0.2, 0, 0, 1) !important;
+  transform: translateX(calc(var(--gemini-switcher-offset) + var(--gemini-toc-effective-width))) !important;
+  opacity: 1 !important; visibility: visible !important;
 }
 
 top-bar-actions {
-    /* Berechnet: Sidebar + TOC */
-    left: calc(var(--gemini-current-sidebar-width) + var(--gemini-toc-effective-width)) !important;
-    transition: left 300ms cubic-bezier(0.2, 0, 0, 1) !important;
-}
-.gemini-resizing top-bar-actions { transition: none !important; }
-
-
-/* === VERHALTEN BEI EINGEKLAPPTER SIDEBAR === */
-
-/* Text ausblenden */
-.sidenav-with-history-container.collapsed .gemini-toc-sidebar-btn .mdc-list-item__content {
-    display: none !important;
+  left: calc(var(--gemini-current-sidebar-width) + var(--gemini-toc-effective-width)) !important;
+  transition: left 300ms cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
 
-/* === SONSTIGES === */
+/* ==========================================================================
+   8. DRAG & DROP VISUALS
+   ========================================================================== */
+.conversation-items-container.gemini-dragging { opacity: 0.5; }
 
-.explore-gems-container button {
-  width: calc(100% - 14px) !important;
-  margin-right: 2px !important;
+.folder-header.gemini-drag-over,
+.conversation-items-container.gemini-chat-drag-over {
+  border: none !important; outline: none !important;
+  background-color: var(--gemini-bg-dnd-chat) !important;
+  border-radius: var(--gemini-radius) !important;
+}
+
+.gemini-chat-is-dragging .folder-header > *,
+.gemini-chat-is-dragging .conversation-items-container > * {
+  pointer-events: none !important;
+}
+
+
+/* ==========================================================================
+   9. MISCELLANEOUS UI
+   ========================================================================== */
+
+/* Folder Actions (Context Menu) */
+.folder-actions {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: none; pointer-events: auto;
+  background: var(--gemini-bg-actions);
+  border-radius: 4px; z-index: var(--gemini-z-actions);
+}
+.folder-header:hover .folder-actions { display: flex; }
+
+.folder-actions .action-btn {
+  background: none; border: none; cursor: pointer; color: #bdc1c6;
+  padding: 4px; margin: 0 2px; border-radius: 50%;
+}
+.folder-actions .action-btn:hover { background-color: rgba(255, 255, 255, .1); }
+.folder-actions .action-btn:disabled { color: var(--gemini-text-disabled); cursor: not-allowed; }
+
+/* Inline Edit Input */
+.folder-name-input {
+  font: inherit; color: var(--gemini-text-variant); font-weight: 500;
+  border: none; outline: none; background: transparent;
+  padding: 0; margin: 0; flex-grow: 1; min-width: 0;
+}
+
+/* Export Button Tooltip */
+#gemini-tex-export-button-wrapper { position: relative; }
+.gemini-tex-tooltip {
+  word-break: normal; overflow-wrap: anywhere;
+  padding: 4px 8px; min-width: 40px; max-width: 200px;
+  box-sizing: border-box; overflow: hidden; text-align: center;
+  background-color: var(--mat-tooltip-container-color, var(--mat-sys-inverse-surface));
+  color: var(--mat-tooltip-supporting-text-color, var(--mat-sys-inverse-on-surface));
+  border-radius: var(--mat-tooltip-container-shape, var(--mat-sys-corner-extra-small));
+  font-family: var(--mat-tooltip-supporting-text-font, var(--mat-sys-body-small-font));
+  font-size: var(--mat-tooltip-supporting-text-size, var(--mat-sys-body-small-size));
+  font-weight: var(--mat-tooltip-supporting-text-weight, var(--mat-sys-body-small-weight));
+  position: absolute; top: 100%; left: 50%; margin-top: 10px;
+  opacity: 0; visibility: hidden;
+  transform: translateX(-50%) scale(0.8);
+  transition: opacity 150ms cubic-bezier(0, 0, 0.2, 1), transform 150ms cubic-bezier(0, 0, 0.2, 1), visibility 150ms cubic-bezier(0, 0, 0.2, 1);
+  pointer-events: none; white-space: nowrap;
+}
+#gemini-tex-export-button-wrapper:hover .gemini-tex-tooltip {
+  opacity: 1; visibility: visible; transform: translateX(-50%) scale(1);
+}
+
+/* Custom Scrollbar */
+@media (pointer: fine) {
+  ::-webkit-scrollbar, ::-webkit-scrollbar-corner { height: 24px !important; width: 24px !important; }
+  ::-webkit-scrollbar-thumb {
+    background: content-box var(--gem-sys-color--surface-container-highest) !important;
+    border: 2px solid transparent; border-radius: var(--gemini-radius) !important;
+    min-height: 48px; min-width: 48px;
+  }
+}
+@supports not (selector(::-webkit-scrollbar)) {
+  * { scrollbar-width: auto !important; scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important; }
 }
