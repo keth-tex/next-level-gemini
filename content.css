@@ -94,8 +94,19 @@ mat-drawer.mat-drawer-opened {
   transition: none !important;
 }
 
-.gemini-resizing body {
-  user-select: none;
+/* GLOBAL DRAG STATE FIXES */
+/* Erzwingt den Cursor und verhindert Selektionen während des Ziehens */
+.gemini-resizing body,
+.gemini-resizing body * {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+
+/* Verhindert Interaktionen (Hover etc.) mit anderen Elementen beim Ziehen */
+.gemini-resizing iframe,
+.gemini-resizing button,
+.gemini-resizing a {
+  pointer-events: none !important;
 }
 
 /* === 3. SCROLLBAR STYLING === */
@@ -121,13 +132,112 @@ mat-drawer.mat-drawer-opened {
   }
 }
 
-/* === 4. "NEW FOLDER" BUTTON === */
-/* Adds bottom padding similar to "Gems" */
-#new-folder-button-wrapper {
-  padding-right: 24px !important;
+/* === 4. "NEW FOLDER" BUTTON & TOC BUTTON === */
+
+/* KILL SWITCH für Material Design Overlays */
+/* Dies entfernt die grauen Schleier, die den Hover-Effekt stören könnten */
+.new-folder-button::before, .new-folder-button::after,
+.gemini-toc-sidebar-btn::before, .gemini-toc-sidebar-btn::after {
+    display: none !important;
+    content: none !important;
 }
 
-/* === 5. FOLDER HEADER STYLING === */
+/* Basis-Styling (Exakt wie Ordner) */
+.new-folder-button,
+.gemini-toc-sidebar-btn {
+  background-color: #333 !important; /* Folder Header Background */
+  border-radius: 8px !important;     /* Folder Header Radius */
+  /* color: #dde2e9 !important;         /* Folder Header Text Color */
+  color: var(--gem-sys-color--on-surface-variant) !important;
+  
+  /* Explizite Anforderungen */
+  height: 40px !important;
+  width: 100% !important; /* WICHTIG: Volle Breite wie die Ordner */
+  
+  /* Ränder entfernen, die die Breite einschränken */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  
+  /* Innenabstände anpassen (Horizontal wie Ordner) */
+  /* padding-left: 16px !important;
+  padding-right: 16px !important; */
+  
+  /* Reset */
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Hover-Effekt wie bei Ordnern */
+.new-folder-button:hover,
+.gemini-toc-sidebar-btn:hover {
+  background-color: var(--gem-sys-color--surface-container-low) !important; /* Folder Hover Color */
+}
+
+/* Text-Styling innerhalb der Buttons anpassen */
+.new-folder-button .mdc-list-item__primary-text,
+.gemini-toc-sidebar-btn .mdc-list-item__primary-text,
+.new-folder-button .gds-body-m {
+  /* color: #dde2e9 !important; */
+  color: var(--gem-sys-color--on-surface-variant) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important; /* Explizite Anforderung */
+  font-family: var(--mat-list-list-item-label-text-font) !important;
+}
+
+/* Icon-Styling anpassen (Farbe wie Text) */
+.new-folder-icon,
+.gemini-toc-sidebar-btn .mat-icon {
+  /* color: #dde2e9 !important; */
+  color: var(--gem-sys-color--on-surface-variant) !important;
+  height: 20px !important;
+  width: 20px !important;
+  font-size: 20px !important;
+}
+
+/* Icon Container Zentrierung */
+.new-folder-icon-container,
+.gemini-toc-sidebar-btn .icon-container {
+  margin-left: 14px !important; /* Abstand Icon zu Rand/Text justieren */
+  margin-right: 16px !important; /* Abstand Icon zu Rand/Text justieren */
+  width: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* === 5. ABSTÄNDE (MARGINS) === */
+
+/* Abstand unter "Neuer Chat" */
+.overflow-container > mat-action-list:first-child {
+  margin-bottom: 12px !important;
+}
+
+/* Abstand unter "Gems entdecken" */
+.explore-gems-container {
+  margin-bottom: 12px !important;
+}
+
+/* Abstand unter "Neuer Ordner" (Wrapper) */
+#new-folder-button-wrapper {
+  padding-left: 12px !important;
+  padding-right: 2px !important;
+  margin-bottom: 0px !important; /* Etwas Platz vor den Ordnern/Chats */
+}
+
+#gemini-toc-toggle-button {
+    margin-left: 12px !important;
+    width: calc(100% - 24px) !important;
+}
+
+/* Abstand unter "Inhaltsverzeichnis" */
+/* Das Inhaltsverzeichnis ist das erste Element in der unteren .desktop-controls Liste */
+mat-action-list.desktop-controls > side-nav-action-button:first-child {
+  margin-bottom: 24px !important;
+}
+
+
+/* === 6. FOLDER HEADER STYLING === */
 .folder-header {
   display: flex;
   align-items: center;
@@ -160,7 +270,7 @@ mat-drawer.mat-drawer-opened {
   color: #dde2e9;
 }
 
-/* === 6. FOLDER ACTIONS (RENAME, DELETE) === */
+/* === 7. FOLDER ACTIONS (RENAME, DELETE) === */
 .folder-actions {
   position: absolute;
   right: 8px;
@@ -217,7 +327,7 @@ mat-drawer.mat-drawer-opened {
   min-width: 0;
 }
 
-/* === 7. DRAG AND DROP STYLING === */
+/* === 8. DRAG AND DROP STYLING === */
 .conversation-items-container.gemini-dragging {
   opacity: 0.5;
 }
@@ -242,7 +352,7 @@ mat-drawer.mat-drawer-opened {
   pointer-events: none !important;
 }
 
-/* === 8. GRID ANIMATION (AGGRESSIVE FIX) === */
+/* === 9. GRID ANIMATION (AGGRESSIVE FIX) === */
 
 /* 1. Base State */
 .conversation-items-container {
@@ -307,38 +417,7 @@ mat-drawer.mat-drawer-opened {
   transform: rotate(90deg) !important;
 }
 
-/* === 10. NEW FOLDER === */
-.new-folder-button {
-  height: 40px !important;
-  margin-left: 12px !important;
-  margin-right: 12px !important;
-  padding-right: 0px !important;
-}
-
-.new-folder-button .mdc-list-item__primary-text {
-  color: var(--gem-sys-color--on-surface-variant) !important;
-}
-
-/* Prevents icon color change on Hover or Focus */
-#new-folder-button:is(:hover, :focus) .mat-icon {
-  /* Explicitly set icon color to standard shade of sidebar icons */
-  /* !important is necessary to override Gemini's hover rules */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-}
-
-.new-folder-icon-container {
-  margin-left: 14px !important;
-  width: 20px !important;
-  /* height: 20px !important; */
-  /* line-height: 24px !important; */
-}
-
-.new-folder-icon {
-  height: 20px !important;
-}
-
-/* === 11. TABLE OF CONTENTS (TOC) === */
-
+/* === 10. TABLE OF CONTENTS (TOC) === */
 :root {
   /* Breite des TOC im eingeklappten Zustand: 0, da komplett weg */
   --gemini-toc-collapsed-width: 0px;
@@ -353,7 +432,10 @@ mat-drawer.mat-drawer-opened {
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden !important; /* Wichtig für saubere Animation */
+  
+  /* WICHTIG: Overflow Visible lassen, damit der Resizer (außerhalb) sichtbar ist */
+  overflow: visible !important; 
+  
   box-sizing: border-box;
   z-index: 90 !important;
   background-color: var(--gem-sys-color--surface-container);
@@ -363,10 +445,35 @@ mat-drawer.mat-drawer-opened {
   border-right: 1px solid transparent; /* Optional: Visuelle Trennung */
 }
 
-/* EINGEKLAPPTER ZUSTAND */
+/* FIX: DEAKTIVIERE Transition beim Ziehen gegen "Lag" */
+html.gemini-resizing #gemini-toc-container {
+  transition: none !important;
+}
+
 #gemini-toc-container.collapsed {
   width: 0px !important;
   min-width: 0px !important;
+}
+
+/* === FIX: ANIMATION (SLIDING DOOR) & RESIZER VISIBILITY === */
+
+/* Die Maske übernimmt das Clipping des Inhalts */
+.gemini-toc-mask {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  
+  width: 100% !important;
+  height: 100%;
+  overflow: hidden !important; /* Hier wird abgeschnitten */
+  box-sizing: border-box;
+}
+
+/* Die Kinder der Maske erzwingen die volle Breite, auch wenn die Maske schrumpft */
+.gemini-toc-mask > * {
+  width: var(--gemini-toc-width, 308px) !important;
+  min-width: var(--gemini-toc-width, 308px) !important;
+  box-sizing: border-box !important;
 }
 
 /* Header "Inhalt" */
@@ -481,8 +588,8 @@ mat-drawer.mat-drawer-opened {
   line-height: 1.4 !important; /* Better readability for multi-line */
 }
 
-/* === 12. CONVERSATION STYLING === */
-.conversation, .mat-mdc-list-item {
+/* === 11. CONVERSATION STYLING === */
+.conversation, .mat-mdc-list-item, .pending-conversation-animation {
   border-radius: 8px !important;
 }
 
@@ -501,20 +608,41 @@ input-area-v2 {
   padding: 18px 24px !important;
 }
 
-/* === 13. SIDEBAR COLLAPSED STATE FIX === */
-/* Versteckt den "Neuer Ordner"-Button und die Ordner-Header, 
-   wenn die Seitenleiste eingeklappt ist (Klasse .collapsed).
-   Behebt das "Hüpfen" des New-Chat-Icons und das Überlappen.
-*/
-.sidenav-with-history-container.collapsed #new-folder-button-wrapper,
-.sidenav-with-history-container.collapsed .folder-header {
-  display: none !important;
+/* === 12. SIDEBAR COLLAPSED STATE FIX (ANIMIERT) === */
+
+/* Base State: Transitionen aktivieren */
+#new-folder-button-wrapper,
+.folder-header {
+  transition: 
+      /* max-height 300ms cubic-bezier(0.2, 0, 0, 1), */
+      margin 300ms cubic-bezier(0.2, 0, 0, 1),
+      padding 300ms cubic-bezier(0.2, 0, 0, 1),
+      opacity 150ms cubic-bezier(0.4, 0.0, 1, 1); /* Fade out faster */
+  
+  /* Explizite Startwerte für die Animation */
+  /* max-height: 80px; */
+  opacity: 1;
+  overflow: hidden;
 }
 
-/* === 14. FIX: ICON CONTAINER HEIGHT === */
-/* Verhindert, dass Flexbox die inneren Container auf 34px streckt.
-   Zwingt sie auf die native Höhe von ca. 27px zurück.
-*/
+/* Collapsed State: Sanftes Schließen */
+.sidenav-with-history-container.collapsed #new-folder-button-wrapper,
+.sidenav-with-history-container.collapsed .folder-header {
+  /* Nicht 'display: none', damit Animation funktioniert */
+  
+  opacity: 0 !important;
+  /* max-height: 0px !important; */
+  
+  /* Abstände entfernen */
+  margin-top: 0px !important;
+  margin-bottom: 0px !important;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+  
+  border: none !important;
+  pointer-events: none !important;
+}
+
 .side-nav-action-collapsed-button {
   display: flex !important;
   margin-left: 18px !important;
@@ -540,21 +668,22 @@ input-area-v2 {
   /* justify-content: center !important; */
 }
 
-/* === 15. MODE SWITCHER POSITION & TOC TOGGLE === */
+/* === 13. MODE SWITCHER POSITION & TOC TOGGLE === */
 
 /* Basic Variables */
 :root {
   --gemini-sidenav-diff: 236px; 
   --gemini-switcher-offset: var(--gemini-sidenav-diff);
+  --gemini-current-sidebar-width: var(--bard-sidenav-open-width, 308px);
+  --gemini-toc-effective-width: var(--gemini-toc-width); 
 }
 
 /* Wenn Sidenav geschlossen */
 body:has(.sidenav-with-history-container.collapsed) {
   --gemini-switcher-offset: 0px;
+  --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
 }
 
-/* Wenn TOC geschlossen */
-:root { --gemini-toc-effective-width: var(--gemini-toc-width); }
 body.gemini-toc-closed { --gemini-toc-effective-width: 0px; }
 
 /* Switcher Animation */
@@ -574,113 +703,6 @@ location-footer {
     max-width: 428px !important;
 }
 
-/* === 16. TOP BAR ACTIONS & RESIZER GLOBAL LOGIC === */
-
-/* === ERGÄNZUNGEN & FIXES === */
-
-/* 1. CONTAINER & MASKE */
-#gemini-toc-container {
-  width: var(--gemini-toc-width, 308px);
-  min-width: 0px;
-  flex-shrink: 0; 
-  position: relative;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  z-index: 90 !important;
-  background-color: var(--gem-sys-color--surface-container);
-  
-  /* WICHTIG: Visible lassen, damit der Resizer nach rechts 'herausragen' kann */
-  overflow: visible !important; 
-  
-  border-right: 1px solid transparent;
-  transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-/* Fix Gummiband-Effekt */
-html.gemini-resizing #gemini-toc-container {
-  transition: none !important;
-}
-
-/* MASKE: Hier wird der Inhalt abgeschnitten */
-.gemini-toc-mask {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  overflow: hidden !important; /* Clipping */
-}
-
-#gemini-toc-container.collapsed {
-  width: 0px !important;
-  min-width: 0px !important;
-  border: none !important;
-}
-
-/* 2. TOC RESIZER (Relativ am rechten Rand) */
-#gemini-toc-resizer {
-  position: absolute;
-  top: 0;
-  right: -50px; /* Ragt nach rechts heraus */
-  bottom: 0;
-  width: 50px;
-  z-index: 99;
-  cursor: col-resize;
-  left: auto !important;
-}
-
-body.gemini-toc-closed #gemini-toc-resizer {
-    display: none !important;
-}
-
-/* 3. LISTE (Mit Scrollbar-Platz) */
-.gemini-toc-list {
-  padding: 0; margin: 0;
-  
-  /* WICHTIG: Scrollbar immer erzwingen/reservieren gegen Springen */
-  overflow-y: scroll !important; 
-  overflow-x: hidden;
-  
-  flex-grow: 1; display: block;
-  transition: opacity 0.2s; opacity: 1;
-}
-
-#gemini-toc-container.collapsed .gemini-toc-list,
-#gemini-toc-container.collapsed .gemini-toc-header {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s ease;
-}
-
-/* 4. HEADER */
-.gemini-toc-header {
-  padding: 12px 16px;
-  margin-top: 15px; 
-  padding-left: 24px;
-  font-family: var(--mat-list-list-item-label-text-font);
-  font-size: var(--mat-list-list-item-label-text-size);
-  font-weight: 500;
-  color: #dde2e9;
-  background-color: transparent;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  flex-shrink: 0;
-}
-
-/* 5. TOP BAR ACTIONS */
-:root {
-    --gemini-current-sidebar-width: var(--bard-sidenav-open-width, 308px);
-    --gemini-toc-effective-width: var(--gemini-toc-width); 
-}
-body.gemini-toc-closed { --gemini-toc-effective-width: 0px; }
-body:has(.sidenav-with-history-container.collapsed) {
-    --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
-    --gemini-switcher-offset: 0px;
-}
-
 top-bar-actions {
     /* Berechnet: Sidebar + TOC */
     left: calc(var(--gemini-current-sidebar-width) + var(--gemini-toc-effective-width)) !important;
@@ -688,40 +710,6 @@ top-bar-actions {
 }
 .gemini-resizing top-bar-actions { transition: none !important; }
 
-
-/* 6. TOGGLE BUTTON STYLING (Neuer Ordner Copy) */
-
-/* Basis-Styling (aus content.css .new-folder-button übernommen) */
-.gemini-toc-sidebar-btn {
-  height: 40px !important;
-  margin-left: 12px !important;
-  margin-right: 12px !important;
-  padding-right: 0px !important;
-  /* Farben */
-  color: var(--gem-sys-color--on-surface-variant) !important;
-}
-
-.gemini-toc-sidebar-btn .mdc-list-item__primary-text {
-  color: var(--gem-sys-color--on-surface-variant) !important;
-}
-
-/* Icon Container (Flex Zentrierung) */
-.gemini-toc-sidebar-btn .icon-container {
-  margin-left: 14px !important;
-  width: 20px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: normal !important;
-}
-
-/* Icon Größe */
-.gemini-toc-sidebar-btn .mat-icon {
-  height: 20px !important;
-  width: 20px !important;
-  font-size: 20px !important;
-  color: var(--gem-sys-color--on-surface-variant) !important;
-}
 
 /* === VERHALTEN BEI EINGEKLAPPTER SIDEBAR === */
 

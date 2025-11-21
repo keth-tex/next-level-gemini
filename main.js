@@ -66,11 +66,13 @@ function injectionLogic() {
   // 3. Folder Button & Logic
   try {
     const conversationContainer = document.querySelector('.conversations-container');
-    const loadingContentSpinnerContainer = document.querySelector('.loading-content-spinner-container');
+    // ZIEL: Container für "Gems entdecken"
+    const exploreGemsContainer = document.querySelector('.explore-gems-container');
 
     if (conversationContainer) {
-      if (!document.getElementById('new-folder-button-wrapper') && loadingContentSpinnerContainer) {
-        loadingContentSpinnerContainer.after(createFolderButton());
+      // PLATZIERUNG: Button wird NACH "Gems entdecken" eingefügt
+      if (!document.getElementById('new-folder-button-wrapper') && exploreGemsContainer) {
+        exploreGemsContainer.after(createFolderButton());
       }
 
       if (!isObservingChats) {

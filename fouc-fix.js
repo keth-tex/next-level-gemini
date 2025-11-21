@@ -13,6 +13,11 @@
             visibility: hidden;
         }
 
+        /* 1.5 Hide New Folder Button Wrapper */
+        #new-folder-button-wrapper {
+            display: none !important;
+        }
+
         /* 2. Hide loading spinner */
         infinite-scroller .loading-content-spinner-container, 
         infinite-scroller mat-progress-spinner {
