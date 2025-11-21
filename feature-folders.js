@@ -15,6 +15,7 @@ const REVEAL_SETTLE_TIME = 500; // Settle time to wait for batches
 
 let isInitialSortComplete = false;
 
+// Konfiguration: Wir achten nur auf Child-List-Changes (Hinzufügen/Entfernen von Chats)
 const chatObserverConfig = {
   childList: true,
   subtree: false,
@@ -26,39 +27,32 @@ const chatObserverConfig = {
 async function prepareFoldersAndStartSync() {
   console.log("Gemini Exporter: Setting all folders to 'isOpen: false'...");
 
-  // 1. Get current structure
   let structure = await getFolderStructure();
 
-  // 1.5. Cache original state
+  // Cache original state
   originalFolderState.clear();
   structure.forEach(folder => {
     originalFolderState.set(folder.id, folder.isOpen);
   });
-  console.log("Gemini Exporter: Original folder state cached.");
 
-  // 2. Modify data
+  // Modify data (start closed)
   structure.forEach(folder => {
     folder.isOpen = false;
   });
 
-  // 3. Save modified structure back
   await chrome.storage.local.set({ 'folderStructure': structure });
 
-  console.log("Gemini Exporter: 'Close-All' complete. Rendering headers & starting observer...");
-
-  // 4. a. Render the (now all closed) headers
+  // Render headers
   renderInitialFolders();
 
-  // 4. b. Start the "Live" Observer
+  // Start Observer
   const conversationContainer = document.querySelector('.conversations-container');
   if (conversationContainer) {
     chatObserver = new MutationObserver(handleChatListMutations);
     chatObserver.observe(conversationContainer, chatObserverConfig);
   }
 
-  // 4. c. Start the FIRST "Live" sort
-  // (calls syncFullListOrder directly instead of triggerDebouncedSync)
-  console.log("Gemini Exporter: Executing first sort.");
+  // First sort
   syncFullListOrder();
 }
 
@@ -83,10 +77,8 @@ async function handleNewFolderClick() {
   }
 
   await chrome.storage.local.set({ 'folderStructure': structure });
-  console.log(`Gemini Exporter: Folder '${newFolder.name}' added.`);
 
-  // --- FLICKER FIX ---
-  // 1. Manually render the header
+  // Manual render to avoid flicker
   const container = document.querySelector('.conversations-container');
   if (container) {
     const customFolders = structure.filter(f => !f.isDefault);
@@ -95,10 +87,9 @@ async function handleNewFolderClick() {
     container.appendChild(newHeaderEl);
   }
 
-  // 2. Call Sync *immediately* (NO Debounce, user action)
   await syncFullListOrder();
 
-  // 3. Start edit mode
+  // Start edit mode
   setTimeout(() => {
     const newHeader = document.querySelector(`.folder-header[data-folder-id="${newFolder.id}"]`);
     if (newHeader) {
@@ -129,8 +120,6 @@ async function toggleFolder(folderId) {
     `.conversations-container .conversation-items-container[data-folder-id="${folderId}"]`
   );
 
-  console.log(`Gemini Exporter: Switching ${chatsInFolder.length} chats to ${folder.isOpen ? 'visible' : 'invisible'}.`);
-
   chatsInFolder.forEach(chatEl => {
     // Toggle animation class
     if (folder.isOpen) {
@@ -152,7 +141,6 @@ async function renderInitialFolders() {
   const conversationContainer = document.querySelector('.conversations-container');
 
   if (!conversationContainer) {
-    console.error("Gemini Exporter: Could not find .conversations-container for header injection.");
     isRendering = false;
     if (mainObserver) mainObserver.observe(document.body, mainObserverConfig); // mainObserverConfig is in main.js
     return;
@@ -185,21 +173,14 @@ async function revealContainer() {
   if (isInitialSortComplete) return; // Already revealed
 
   const container = document.querySelector('.conversations-container');
-  if (!container) {
-    console.warn("Gemini Exporter: Reveal timer expired, but container not found.");
-    return;
-  }
+  if (!container) return;
 
   const hasChats = container.querySelector('.conversation-items-container');
   const isEmpty = document.querySelector('.empty-state-container'); // Global check
 
   // Reveal only if there is content (chats or empty message)
   if (hasChats || isEmpty) {
-    console.log("Gemini Exporter: Mutations settled. Executing final sync and revealing.");
-
-    // 1. Restore original 'isOpen' state
     if (originalFolderState.size > 0) {
-      console.log("Gemini Exporter: Restoring original folder status...");
       let structure = await getFolderStructure();
       let changed = false;
 
@@ -217,36 +198,29 @@ async function revealContainer() {
       originalFolderState.clear();
     }
 
-    // Execute sort one last time before revealing
     await syncFullListOrder();
 
-    // NEW REVEAL LOGIC
-    // 1. Remove FOUC fix stylesheet
     const foucStyle = document.getElementById('gemini-folder-fouc-fix');
-    if (foucStyle) {
-      foucStyle.remove();
-      console.log("Gemini Exporter: FOUC stylesheet removed.");
-    }
+    if (foucStyle) foucStyle.remove();
 
-    // 2. Set visibility explicitly
     container.style.visibility = 'visible';
 
-    // 3. Remove scrollbar fix from parent as fallback
     const sidenavContent = document.querySelector('bard-sidenav-content');
-    if (sidenavContent) {
-      sidenavContent.style.overflow = '';
-    }
+    if (sidenavContent) sidenavContent.style.overflow = '';
 
     isInitialSortComplete = true;
-    console.log("Gemini Exporter: List sorted and revealed.");
-  } else {
-    console.log("Gemini Exporter: Reveal timer expired, but no chats or empty state found. Waiting for next mutation.");
   }
 }
 
 function handleChatListMutations(mutations) {
-  // Call sort immediately.
-  // The 'isRendering' lock in syncFullListOrder prevents overlaps.
+  // WICHTIG!
+  // Wenn gerade ein Drag-Vorgang läuft, ignorieren wir alle Änderungen von Gemini.
+  // Das verhindert, dass uns die Liste unter dem Mauszeiger "weg-sortiert" wird,
+  // was zum Absturz des Drag-Events führt.
+  if (document.documentElement.classList.contains('gemini-chat-is-dragging')) {
+      // console.log("Gemini Exporter: Mutation ignored during drag.");
+      return;
+  }
   syncFullListOrder();
 }
 
@@ -356,10 +330,7 @@ async function handleDeleteFolder(folderId) {
   const folder = structure[folderIndex];
 
   const defaultFolder = structure.find(f => f.isDefault);
-  if (!defaultFolder) {
-    console.error("Gemini Exporter: Delete failed, no default folder found.");
-    return;
-  }
+  if (!defaultFolder) return;
 
   defaultFolder.chatIds.unshift(...folder.chatIds);
   structure.splice(folderIndex, 1);
@@ -412,10 +383,7 @@ async function moveChatToFolder(chatId, newFolderId) {
     }
   });
 
-  if (currentFolderId === newFolderId) {
-    console.log("Gemini Exporter: Chat already in target folder. Canceling move.");
-    return;
-  }
+  if (currentFolderId === newFolderId) return;
 
   if (currentFolderId) {
     const oldFolder = structure.find(f => f.id === currentFolderId);
