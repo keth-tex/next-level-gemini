@@ -1,7 +1,7 @@
 /**
  * feature-toc.js
- * Implements a Table of Contents (TOC).
- * Uses global flag window.isGeminiModifyingDOM to prevent observer loops.
+ * Implements a Table of Contents (TOC) with Centered Auto-Scroll-Spy.
+ * Includes "Smart Update" to prevent flickering on irrelevant mutations.
  */
 
 // Global State
@@ -9,6 +9,7 @@ let tocObserver = null;
 let tocScrollDebounce = null;
 let currentScrollElement = null;
 let isTOCOpen = true;
+let scrollSpyObserver = null;
 
 // Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
@@ -41,23 +42,15 @@ function startTOCDrag(e) {
 function initTOC() {
   // Check 1: Already existing?
   if (document.getElementById(TOC_CONTAINER_ID)) {
-      // Ensure button is there (soft check)
       if (!document.getElementById(TOC_TOGGLE_BUTTON_ID)) {
           injectSidebarButton();
       }
-      updateTOCState(); // Check visual state
+      updateTOCState();
 
-      // FIX: Auch wenn der Container existiert, müssen wir prüfen, ob der Observer
-      // noch am richtigen Scroller hängt (z.B. nach Navigation zurück zum Chat).
-      // Wir suchen den aktuellen Scroller im DOM.
       const scroller = document.querySelector(TOC_CHAT_SCROLLER_SELECTOR);
-      
-      // Wenn ein Scroller da ist, aber wir ihn noch nicht (oder einen alten) beobachten:
       if (scroller && currentScrollElement !== scroller) {
-          // console.log("Gemini TOC: Scroller changed (Navigation detected). Re-attaching observer.");
           startTOCObserver(scroller);
       }
-
       return;
   }
 
@@ -227,28 +220,86 @@ function updateTOCState() {
     }
 }
 
-// ... (updateTOC, startTOCObserver, applySavedTOCWidth, syncTOCWidthToNav - UNCHANGED) ...
+// === TOC UPDATE & SCROLL SPY ===
 
 function updateTOC() {
   const tocList = document.querySelector(`#${TOC_CONTAINER_ID} .gemini-toc-list`);
   if (!tocList) return;
 
   const blocks = document.querySelectorAll(TOC_CONVERSATION_BLOCK_SELECTOR);
-  // Only rebuild if count changed or content different to be super safe, 
-  // but here we just assume content update is necessary.
-  // No global lock needed here as TOC is internal to our container.
   
+  // --- STEP 1: SMART UPDATE CHECK ---
+  // Instead of rebuilding blindly (which causes flicker/scroll jumps),
+  // we check if the content has actually changed.
+  
+  // 1a. Gather current data from the DOM (Chat Blocks)
+  const currentData = [];
+  blocks.forEach((block, index) => {
+      const promptEl = block.querySelector(TOC_PROMPT_SELECTOR);
+      if (promptEl) {
+          // Ensure ID is present for stability
+          if (!block.id) block.id = `gemini-conversation-block-${index}`;
+          
+          currentData.push({
+              id: block.id,
+              text: promptEl.innerText.trim().replace(/\n+/g, '\n'),
+              block: block
+          });
+      }
+  });
+
+  // 1b. Compare with existing TOC items
+  const existingItems = Array.from(tocList.querySelectorAll('.gemini-toc-item'));
+  let isSame = (currentData.length === existingItems.length);
+
+  if (isSame) {
+      for (let i = 0; i < currentData.length; i++) {
+          const existingTextEl = existingItems[i].querySelector('.mdc-list-item__primary-text');
+          const existingText = existingTextEl ? existingTextEl.textContent : '';
+          
+          if (currentData[i].text !== existingText) {
+              isSame = false;
+              break;
+          }
+      }
+  }
+
+  // 1c. ABORT if no changes detected
+  if (isSame) {
+      // Optional: Ensure ScrollSpy observes any new blocks even if list looked same 
+      // (edge case), but usually we just return to keep UI stable.
+      return; 
+  }
+
+  // --- STEP 2: REBUILD (only if changed) ---
+  
+  if (scrollSpyObserver) {
+      scrollSpyObserver.disconnect();
+      scrollSpyObserver = null;
+  }
+
   tocList.innerHTML = '';
 
-  blocks.forEach((block, index) => {
-    const promptEl = block.querySelector(TOC_PROMPT_SELECTOR);
-    if (!promptEl) return;
+  // Setup ScrollSpy (Trigger at 50% viewport height)
+  scrollSpyObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+          if (entry.isIntersecting) {
+              setActiveTOCItem(entry.target.id);
+          }
+      });
+  }, {
+      root: currentScrollElement,
+      rootMargin: '-50% 0px -50% 0px',
+      threshold: 0
+  });
 
-    if (!block.id) block.id = `gemini-conversation-block-${index}`;
-    const text = promptEl.innerText.trim().replace(/\n+/g, '\n');
-    
+  currentData.forEach((item) => {
     const button = document.createElement('button');
     button.className = 'gemini-toc-item';
+    button.dataset.targetId = item.id;
+    
+    // Ensure margins are visible when auto-scrolling in TOC
+    button.style.scrollMarginBlock = '18px';
     
     const contentSpan = document.createElement('span');
     contentSpan.className = 'mdc-list-item__content';
@@ -258,7 +309,7 @@ function updateTOC() {
     
     const textSpan = document.createElement('span');
     textSpan.className = 'gds-body-m';
-    textSpan.textContent = text;
+    textSpan.textContent = item.text;
     
     unscopedSpan.appendChild(textSpan);
     contentSpan.appendChild(unscopedSpan);
@@ -270,13 +321,30 @@ function updateTOC() {
     button.appendChild(focusIndicator);
 
     button.addEventListener('click', () => {
-      block.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      document.querySelectorAll('.gemini-toc-item.active').forEach(el => el.classList.remove('active'));
-      button.classList.add('active');
+      item.block.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     tocList.appendChild(button);
+    scrollSpyObserver.observe(item.block);
   });
+}
+
+function setActiveTOCItem(blockId) {
+    // Remove active class from currently active item
+    const currentActive = document.querySelector('.gemini-toc-item.active');
+    
+    // Optimization: Don't do anything if the active item hasn't changed
+    if (currentActive && currentActive.dataset.targetId === blockId) return;
+    
+    if (currentActive) currentActive.classList.remove('active');
+
+    // Add active class to new item
+    const newActive = document.querySelector(`.gemini-toc-item[data-target-id="${blockId}"]`);
+    if (newActive) {
+        newActive.classList.add('active');
+        // 'nearest' respects 'scrollMarginBlock' set above, ensuring the gap is visible
+        newActive.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
 }
 
 function startTOCObserver(element) {
