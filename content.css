@@ -18,7 +18,7 @@
   --gemini-text-primary:          var(--gem-sys-color--on-surface-variant); /* Brighter, used for Headers/Folders */
   /* --gemini-text-variant:          var(--gem-sys-color--on-surface-variant); /* Muted, used for Buttons/Items */
   --gemini-text-variant:          rgb(196, 199, 197); /* Muted, used for Buttons/Items */
-  --gemini-text-selected:         var(--sidenav-button-selected-text-color);
+  --gemini-text-selected:         rgb(223, 231, 245); /* var(--sidenav-button-selected-text-color); */
   --gemini-text-disabled:         #5f6368;
 
   /* --- Dimensions --- */
@@ -37,6 +37,10 @@
   --gemini-z-actions:             10;
   --gemini-z-toc:                 90;
   --gemini-z-resizer:             99;
+  
+  /* --- Scrollbar --- */
+  --gemini-scrollbar-hover:       rgb(68, 71, 70);
+  --gemini-scrollbar-active:      rgb(68, 71, 70);
 }
 
 /* State Adjustments for CSS Variables */
@@ -95,7 +99,6 @@ body.gemini-toc-closed {
 /* 2.4 Text Styling - Group A: Buttons & List Items (Variant Color) */
 .new-folder-button .mdc-list-item__primary-text,
 .gemini-toc-sidebar-btn .mdc-list-item__primary-text,
-.new-folder-button .gds-body-m,
 .gemini-toc-item .mdc-list-item__primary-text {
   color: var(--gemini-text-variant) !important;
   font-weight: 400 !important;
@@ -109,7 +112,7 @@ body.gemini-toc-closed {
 }
 
 /* 2.6 Icon Styling consistency */
-.new-folder-icon,
+.new-folder-button .mat-icon,
 .gemini-toc-sidebar-btn .mat-icon,
 .folder-header mat-icon {
   color: var(--gemini-text-variant) !important;
@@ -134,13 +137,12 @@ body.gemini-toc-closed {
 
 /* Specific Font Size for Buttons */
 .new-folder-button .mdc-list-item__primary-text,
-.gemini-toc-sidebar-btn .mdc-list-item__primary-text,
-.new-folder-button .gds-body-m {
+.gemini-toc-sidebar-btn .mdc-list-item__primary-text {
   font-size: 14px !important;
 }
 
 /* Icon Containers in Buttons */
-.new-folder-icon-container,
+.new-folder-button .icon-container,
 .gemini-toc-sidebar-btn .icon-container {
   margin-left: 14px !important;
   margin-right: 16px !important;
@@ -152,20 +154,24 @@ body.gemini-toc-closed {
 
 /* 3.2 Folder Headers */
 .folder-header {
-  padding: 12px 16px;
-  gap: 8px;
+  padding: 12px 16px 12px 0;
+  /* gap: 8px; */
   margin-top: 12px;
   margin-bottom: 6px;
   position: relative; /* Context for actions menu */
 }
 
 .folder-name {
+  position: relative;
+  top: 1px;
   flex-grow: 1;
   font-size: var(--mat-list-list-item-label-text-size) !important;
 }
 
 /* Folder Arrow Animation */
 .folder-header .folder-toggle-icon {
+  margin-left: 14px;
+  margin-right: 16px;
   transition: transform 0.3s ease !important;
   transform-origin: center !important;
 }
@@ -203,26 +209,18 @@ body.gemini-toc-closed {
    4. LAYOUT, SPACING & MARGINS
    ========================================================================== */
 
-/* Vertical Spacing corrections */
-.overflow-container > mat-action-list:first-child,
-.explore-gems-container {
-  margin-bottom: 12px !important;
+.overflow-container > mat-action-list > :first-child { /*.explore-gems-container*/
+  margin-bottom: 18px !important;
 }
 
-#new-folder-button-wrapper {
-  padding-left: 12px !important;
-  padding-right: 2px !important;
-  margin-bottom: 0px !important;
+.overflow-container > mat-action-list > :nth-child(2) { /*.explore-gems-container*/
+  margin-bottom: 24px !important;
 }
 
+#new-folder-button,
 #gemini-toc-toggle-button {
   margin-left: 12px !important;
   width: calc(100% - 24px) !important;
-}
-
-/* Bottom Nav Spacing */
-mat-action-list.desktop-controls > side-nav-action-button:first-child {
-  margin-bottom: 24px !important;
 }
 
 /* Native Element Tweaks */
@@ -365,7 +363,6 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
    ========================================================================== */
 
 /* 7.1 Sidebar Collapse Animation (Hide Elements) */
-#new-folder-button-wrapper,
 .folder-header {
   transition: margin 300ms cubic-bezier(0.2, 0, 0, 1),
               padding 300ms cubic-bezier(0.2, 0, 0, 1),
@@ -374,7 +371,6 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
   overflow: hidden;
 }
 
-.sidenav-with-history-container.collapsed #new-folder-button-wrapper,
 .sidenav-with-history-container.collapsed .folder-header {
   opacity: 0 !important;
   margin: 0 !important;
@@ -384,6 +380,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 }
 
 /* Hide TOC Button Text when collapsed */
+.sidenav-with-history-container.collapsed .new-folder-button .mdc-list-item__content
 .sidenav-with-history-container.collapsed .gemini-toc-sidebar-btn .mdc-list-item__content {
   display: none !important;
 }
@@ -485,7 +482,9 @@ top-bar-actions {
 
 /* Inline Edit Input */
 .folder-name-input {
-  font: inherit; color: var(--gemini-text-variant); font-weight: 500;
+  position: relative;
+  top: 1px;
+  font: inherit; color: var(--gemini-text-selected); font-weight: 500;
   border: none; outline: none; background: transparent;
   padding: 0; margin: 0; flex-grow: 1; min-width: 0;
 }
@@ -520,7 +519,25 @@ top-bar-actions {
     border: 2px solid transparent; border-radius: var(--gemini-radius) !important;
     min-height: 48px; min-width: 48px;
   }
+  ::-webkit-scrollbar-thumb:hover {
+    background: content-box var(--gemini-scrollbar-hover) !important; /* Oder eine andere, etwas hellere/dunklere Farbe */
+    border: 2px solid transparent; 
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: content-box var(--gemini-scrollbar-active) !important; 
+    border: 2px solid transparent;
+  }
 }
 @supports not (selector(::-webkit-scrollbar)) {
   * { scrollbar-width: auto !important; scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important; }
+}
+
+.code-block-decoration {
+    border-top-left-radius: var(--gemini-radius) !important;
+    border-top-right-radius: var(--gemini-radius) !important;
+}
+
+.formatted-code-block-internal-container {
+    border-bottom-left-radius: var(--gemini-radius) !important;
+    border-bottom-right-radius: var(--gemini-radius) !important;
 }
