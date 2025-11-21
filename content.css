@@ -11,11 +11,11 @@
   --gemini-bg-actions:            #1e1f20;
   
   /* Drag & Drop Colors */
-  --gemini-bg-dnd-chat:           rgba(102, 104, 104, .65);
+  --gemini-bg-dnd-chat:           rgb(82, 83, 83);
 
   /* Text Colors */
-  --gemini-text-primary:          #dde2e9;
-  --gemini-text-variant:          var(--gem-sys-color--on-surface-variant);
+  --gemini-text-primary:          #dde2e9; /* Brighter, used for Headers/Folders */
+  --gemini-text-variant:          var(--gem-sys-color--on-surface-variant); /* Muted, used for Buttons/Items */
   --gemini-text-selected:         var(--sidenav-button-selected-text-color);
   --gemini-text-disabled:         #5f6368;
 
@@ -90,17 +90,23 @@ body.gemini-toc-closed {
   content: none !important;
 }
 
-/* 2.4 Text Styling consistency (Shared Base) */
+/* 2.4 Text Styling - Group A: Buttons & List Items (Variant Color) */
 .new-folder-button .mdc-list-item__primary-text,
 .gemini-toc-sidebar-btn .mdc-list-item__primary-text,
 .new-folder-button .gds-body-m,
+.gemini-toc-item .mdc-list-item__primary-text {
+  color: var(--gemini-text-variant) !important;
+  font-weight: 400 !important;
+}
+
+/* 2.5 Text Styling - Group B: Headers & Folders (Primary Color) */
 .folder-name,
 .gemini-toc-header {
   color: var(--gemini-text-primary) !important;
   font-weight: 500 !important;
 }
 
-/* 2.5 Icon Styling consistency */
+/* 2.6 Icon Styling consistency */
 .new-folder-icon,
 .gemini-toc-sidebar-btn .mat-icon,
 .folder-header mat-icon {
@@ -169,7 +175,7 @@ body.gemini-toc-closed {
 .gemini-toc-item {
   height: auto !important;
   min-height: var(--gemini-item-height) !important;
-  margin: 6px 0 18px 0 !important;
+  margin: 0 0 18px 0 !important;
   padding: 8px 12px !important;
   box-sizing: border-box !important;
   align-items: flex-start !important; /* Multiline text alignment */
@@ -178,7 +184,6 @@ body.gemini-toc-closed {
 }
 
 .gemini-toc-item .mdc-list-item__primary-text {
-  color: var(--gemini-text-variant) !important;
   white-space: pre-wrap !important;
   overflow: visible !important;
   line-height: 1.4 !important;
@@ -333,7 +338,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 }
 
 .gemini-toc-header {
-  padding: 12px 16px 12px 24px;
+  padding: 12px 16px 24px 24px;
   margin-top: 15px;
   background-color: transparent;
   overflow: hidden;
