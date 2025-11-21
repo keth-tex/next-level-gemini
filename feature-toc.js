@@ -46,6 +46,18 @@ function initTOC() {
           injectSidebarButton();
       }
       updateTOCState(); // Check visual state
+
+      // FIX: Auch wenn der Container existiert, müssen wir prüfen, ob der Observer
+      // noch am richtigen Scroller hängt (z.B. nach Navigation zurück zum Chat).
+      // Wir suchen den aktuellen Scroller im DOM.
+      const scroller = document.querySelector(TOC_CHAT_SCROLLER_SELECTOR);
+      
+      // Wenn ein Scroller da ist, aber wir ihn noch nicht (oder einen alten) beobachten:
+      if (scroller && currentScrollElement !== scroller) {
+          // console.log("Gemini TOC: Scroller changed (Navigation detected). Re-attaching observer.");
+          startTOCObserver(scroller);
+      }
+
       return;
   }
 
@@ -73,6 +85,7 @@ function initTOC() {
     // State update (classes)
     updateTOCState();
     
+    // Initial Observer Start (mit Wait, falls Scroller noch lädt)
     waitForElement(TOC_CHAT_SCROLLER_SELECTOR, (element) => {
         startTOCObserver(element);
     });
@@ -267,7 +280,10 @@ function updateTOC() {
 }
 
 function startTOCObserver(element) {
+    // Check: Are we already observing THIS element?
     if (tocObserver && currentScrollElement === element) return;
+    
+    // If observing something else (or nothing), disconnect first
     if (tocObserver) tocObserver.disconnect();
 
     currentScrollElement = element;
@@ -276,6 +292,8 @@ function startTOCObserver(element) {
       tocScrollDebounce = setTimeout(() => updateTOC(), 500);
     });
     tocObserver.observe(element, { childList: true, subtree: true });
+    
+    // Initial update for this new scroller
     setTimeout(() => updateTOC(), 500);
 }
 
