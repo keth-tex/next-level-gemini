@@ -5,65 +5,87 @@
 
 // === UI GENERATION FUNCTIONS ===
 
-function createFolderButton() {
-  // 1. Create the <mat-action-list> wrapper
-  const listWrapper = document.createElement('mat-action-list');
-  listWrapper.id = 'new-folder-button-wrapper';
-  // FIX: Added 'top-action-list'
-  listWrapper.className = 'mat-mdc-action-list mat-mdc-list-base mdc-list top-action-list';
-  listWrapper.setAttribute('role', 'group');
+/**
+ * Erstellt einen generischen Button für die Sidebar mit exakt der Struktur,
+ * die Gemini (und der TOC-Button) verwendet.
+ * * Struktur:
+ * <side-nav-action-button>
+ * <button>
+ * <icon-container><icon/></icon-container>
+ * <content><span>Label</span></content>
+ * <focus-indicator/>
+ * </button>
+ * </side-nav-action-button>
+ */
+function createGenericSidebarButton(id, iconName, label, extraClasses = '', onClick = null) {
+  // 1. Wrapper Component
+  const wrapper = document.createElement('side-nav-action-button');
+  wrapper.className = 'ia-redesign ng-star-inserted';
 
-  // 2. Create the <button> element
+  // 2. Button Element
   const button = document.createElement('button');
-  button.id = 'new-folder-button';
-  button.className = 'mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line new-folder-button';
+  button.id = id;
+  // Exakte Klassen-Liste wie beim TOC Button
+  button.className = `mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line ${extraClasses}`;
   button.setAttribute('type', 'button');
-  button.setAttribute('aria-label', 'Neuer Ordner');
+  button.setAttribute('aria-label', label);
 
-  // 3. Create the icon container
+  // 3. Icon Container
   const iconContainer = document.createElement('div');
-  iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start new-folder-icon-container';
+  iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start';
 
-  // 4. Create the <mat-icon> element
+  // 4. Icon
   const icon = document.createElement('mat-icon');
-  icon.className = 'mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color new-folder-icon';
+  icon.className = 'mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color';
   icon.setAttribute('aria-hidden', 'true');
   icon.setAttribute('data-mat-icon-type', 'font');
-  icon.textContent = 'folder';
+  icon.textContent = iconName;
 
   iconContainer.appendChild(icon);
 
-  // 5. Create the nested text spans
+  // 5. Content / Label
   const contentSpan = document.createElement('span');
   contentSpan.className = 'mdc-list-item__content';
 
   const unscopedSpan = document.createElement('span');
   unscopedSpan.className = 'mat-mdc-list-item-unscoped-content mdc-list-item__primary-text';
+  unscopedSpan.textContent = label;
 
-  const textSpan = document.createElement('span');
-  textSpan.className = 'gds-body-m'; // Uses the text class from "Discover Gems"
-  textSpan.textContent = 'Neuer Ordner';
-
-  unscopedSpan.appendChild(textSpan);
   contentSpan.appendChild(unscopedSpan);
 
-  // 6. Create the focus indicator
+  // 6. Focus Indicator
   const focusIndicator = document.createElement('div');
   focusIndicator.className = 'mat-focus-indicator';
 
-  // 7. Assemble the button
+  // Assemble Button
   button.appendChild(iconContainer);
   button.appendChild(contentSpan);
   button.appendChild(focusIndicator);
 
-  // 8. Add click listener
-  button.addEventListener('click', handleNewFolderClick);
+  // Add Listener
+  if (onClick) {
+    button.addEventListener('click', onClick);
+  }
 
-  // 9. Add button to wrapper
-  listWrapper.appendChild(button);
+  // Assemble Wrapper
+  wrapper.appendChild(button);
 
-  // 10. Return the complete wrapper
-  return listWrapper;
+  return wrapper;
+}
+
+function createFolderButton() {
+  // Nutzt nun die generische Funktion, gibt aber den Wrapper zurück
+  // ID: new-folder-button
+  // Icon: folder
+  // Label: Neuer Ordner
+  // Extra Class: new-folder-button (für CSS styling hook)
+  return createGenericSidebarButton(
+    'new-folder-button',
+    'folder',
+    'Neuer Ordner',
+    'new-folder-button',
+    handleNewFolderClick
+  );
 }
 
 function renderSingleFolder(folder, index, totalFolders) {

@@ -149,26 +149,36 @@ function injectSidebarButton() {
 
       window.isGeminiModifyingDOM = true; // Lock Observer
       try {
-          const wrapper = document.createElement('side-nav-action-button');
-          wrapper.className = 'ia-redesign ng-star-inserted'; 
-          
-          const buttonHTML = `
-            <button id="${TOC_TOGGLE_BUTTON_ID}" class="mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line gemini-toc-sidebar-btn" type="button" aria-label="Inhaltsverzeichnis umschalten">
-                <div class="mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start">
-                    <mat-icon class="mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color" aria-hidden="true" data-mat-icon-type="font">${isTOCOpen ? 'chevron_left' : 'chevron_right'}</mat-icon>
-                </div>
-                <span class="mdc-list-item__content">
-                    <span class="mat-mdc-list-item-unscoped-content mdc-list-item__primary-text">Inhaltsverzeichnis</span>
-                </span>
-                <div class="mat-focus-indicator"></div>
-            </button>
-          `;
-          
-          wrapper.innerHTML = buttonHTML;
-          const btn = wrapper.querySelector('button');
-          btn.addEventListener('click', toggleTOC);
-          
-          actionList.prepend(wrapper);
+          // Wiederverwendung der generischen Funktion aus folders-ui.js
+          if (typeof createGenericSidebarButton === 'function') {
+              const wrapper = createGenericSidebarButton(
+                  TOC_TOGGLE_BUTTON_ID,
+                  isTOCOpen ? 'chevron_left' : 'chevron_right',
+                  'Inhaltsverzeichnis',
+                  'gemini-toc-sidebar-btn',
+                  toggleTOC
+              );
+              
+              // Button muss nach dem "Neuer Ordner" Button kommen (wenn vorhanden),
+              // aber vor den Standard-Buttons.
+              // Da injectFolderButton (hoffentlich) prepended oder vor TOC einfügt,
+              // können wir TOC einfach an den Anfang der Liste hängen, wenn Folder noch nicht da ist,
+              // oder NACH Folder, wenn Folder da ist.
+              
+              const folderBtn = document.getElementById('new-folder-button');
+              if (folderBtn) {
+                   // Wenn Folder Button da ist, fügen wir TOC danach ein (Wrapper nach Wrapper)
+                   const folderWrapper = folderBtn.closest('side-nav-action-button');
+                   if (folderWrapper && folderWrapper.nextSibling) {
+                       actionList.insertBefore(wrapper, folderWrapper.nextSibling);
+                   } else {
+                       actionList.appendChild(wrapper); // Sollte nicht passieren, da History da ist
+                   }
+              } else {
+                  // Kein Folder Button da, wir hängen uns ganz oben hin
+                  actionList.prepend(wrapper);
+              }
+          }
       } finally {
           window.isGeminiModifyingDOM = false; // Unlock
       }

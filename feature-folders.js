@@ -45,6 +45,9 @@ async function prepareFoldersAndStartSync() {
   // Render headers
   renderInitialFolders();
 
+  // INJECT NEW FOLDER BUTTON (Updated location)
+  injectFolderButton();
+
   // Start Observer
   const conversationContainer = document.querySelector('.conversations-container');
   if (conversationContainer) {
@@ -54,6 +57,61 @@ async function prepareFoldersAndStartSync() {
 
   // First sort
   syncFullListOrder();
+}
+
+/**
+ * Injects the "New Folder" button into the desktop controls list.
+ * It places it BEFORE the TOC button if it exists, or at the top of the list.
+ */
+function injectFolderButton() {
+  // Wait for the list to appear
+  const SIDEBAR_ACTION_LIST_SELECTOR = 'mat-action-list.desktop-controls';
+  
+  const waitForList = (selector, callback) => {
+    const element = document.querySelector(selector);
+    if (element) {
+      callback(element);
+      return;
+    }
+    const observer = new MutationObserver((mutations, obs) => {
+      const el = document.querySelector(selector);
+      if (el) {
+        obs.disconnect();
+        callback(el);
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  };
+
+  waitForList(SIDEBAR_ACTION_LIST_SELECTOR, (actionList) => {
+     if (document.getElementById('new-folder-button')) return;
+
+     // Lock to prevent mutation loops
+     const wasModifying = window.isGeminiModifyingDOM;
+     window.isGeminiModifyingDOM = true;
+
+     try {
+         if (typeof createFolderButton === 'function') {
+             const folderBtnWrapper = createFolderButton(); // Returns side-nav-action-button
+
+             const tocBtn = document.getElementById('gemini-toc-toggle-button');
+             if (tocBtn) {
+                 // Insert BEFORE the TOC button wrapper
+                 const tocWrapper = tocBtn.closest('side-nav-action-button');
+                 if (tocWrapper) {
+                     actionList.insertBefore(folderBtnWrapper, tocWrapper);
+                 } else {
+                     actionList.prepend(folderBtnWrapper);
+                 }
+             } else {
+                 // TOC button not there yet, just prepend to top
+                 actionList.prepend(folderBtnWrapper);
+             }
+         }
+     } finally {
+         window.isGeminiModifyingDOM = wasModifying;
+     }
+  });
 }
 
 // === FOLDER LOGIC (ACTIONS & SYNC) ===
