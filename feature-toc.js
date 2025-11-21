@@ -248,7 +248,7 @@ function updateTOC() {
     const text = promptEl.innerText.trim().replace(/\n+/g, '\n');
     
     const button = document.createElement('button');
-    button.className = 'mat-mdc-list-item mdc-list-item mat-ripple side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mat-mdc-list-item-single-line mdc-list-item--with-one-line gemini-toc-item';
+    button.className = 'gemini-toc-item';
     
     const contentSpan = document.createElement('span');
     contentSpan.className = 'mdc-list-item__content';

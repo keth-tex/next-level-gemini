@@ -171,7 +171,8 @@ mat-drawer.mat-drawer-opened {
 /* Hover-Effekt wie bei Ordnern */
 .new-folder-button:hover,
 .gemini-toc-sidebar-btn:hover {
-  background-color: var(--gem-sys-color--surface-container-low) !important; /* Folder Hover Color */
+  /* background-color: var(--gem-sys-color--surface-container-low) !important; /* Folder Hover Color */
+  background-color: #131314 !important;
 }
 
 /* Text-Styling innerhalb der Buttons anpassen */
@@ -254,7 +255,8 @@ mat-action-list.desktop-controls > side-nav-action-button:first-child {
 }
 
 .folder-header:hover {
-  background: var(--gem-sys-color--surface-container-low);
+  /* background: var(--gem-sys-color--surface-container-low); */
+  background: #131314 !important;
 }
 
 .folder-header mat-icon {
@@ -527,6 +529,8 @@ html.gemini-resizing #gemini-toc-container {
   /* Allow height to grow with text (overriding fixed 40px from New Folder) */
   height: auto !important;
   min-height: 40px !important;
+  margin-top: 6px !important;
+  margin-bottom: 18px !important;
   
   /* Ensure padding and border are included in width calculation */
   box-sizing: border-box !important;
@@ -541,7 +545,7 @@ html.gemini-resizing #gemini-toc-container {
   color: var(--gem-sys-color--on-surface-variant) !important;
   
   /* Reset button defaults */
-  background: transparent;
+  background-color: #333 !important;
   border: none;
   /* width: calc(100% - 24px) !important; Account for margins */
   text-align: left;
@@ -556,20 +560,31 @@ html.gemini-resizing #gemini-toc-container {
 /* Hover Effect */
 .gemini-toc-item:hover {
   /* Only change background, NOT text color */
-  background-color: rgba(255, 255, 255, 0.08);
+  /* background-color: rgba(255, 255, 255, 0.08); */
+  /* background: var(--gem-sys-color--surface-container-low) !important; */
+  background-color: #131314 !important;
+  color: var(--gem-sys-color--on-surface-variant) !important;
 }
 
 /* Active State */
 .gemini-toc-item.active {
-  background-color: rgba(255, 255, 255, 0.15);
+  /* background-color: rgba(255, 255, 255, 0.15); */
+  /* background: var(--gem-sys-color--surface-container-low) !important; */
+  /* background-color: #131314 !important; */
+  background-color: rgb(31, 55, 96) !important;
+  /* color: var(--gem-sys-color--on-surface-variant) !important; */
+  color: var(--sidenav-button-selected-text-color) !important;
   
   /* Only change text color to bright white when ACTIVE */
-  color: var(--gem-sys-color--on-surface) !important;
+  /* color: var(--gem-sys-color--on-surface) !important; */
 }
 
 .gemini-toc-item.active .mdc-list-item__primary-text {
-   color: var(--gem-sys-color--on-surface) !important;
-   font-weight: 500;
+  /* color: var(--gem-sys-color--on-surface) !important; */
+  /* color: var(--gem-sys-color--on-surface-variant) !important; */
+  background-color: rgb(31, 55, 96) !important;
+  color: var(--sidenav-button-selected-text-color) !important;
+  /* font-weight: 500; */
 }
 
 /* * Inner Text Span Styling 
@@ -577,7 +592,7 @@ html.gemini-resizing #gemini-toc-container {
  */
 .gemini-toc-item .mdc-list-item__primary-text {
   /* Ensure color inheritance */
-  color: var(--gem-sys-color--on-surface-variant);
+  color: var(--gem-sys-color--on-surface-variant) !important;
   
   /* Removed 'text-overflow: clip' to avoid cutting letters off */
   white-space: pre-wrap !important;
@@ -589,7 +604,7 @@ html.gemini-resizing #gemini-toc-container {
 }
 
 /* === 11. CONVERSATION STYLING === */
-.conversation, .mat-mdc-list-item, .pending-conversation-animation {
+.conversation, .mat-mdc-list-item, .gemini-toc-item, .pending-conversation-animation {
   border-radius: 8px !important;
 }
 
@@ -716,4 +731,12 @@ top-bar-actions {
 /* Text ausblenden */
 .sidenav-with-history-container.collapsed .gemini-toc-sidebar-btn .mdc-list-item__content {
     display: none !important;
+}
+
+
+/* === SONSTIGES === */
+
+.explore-gems-container button {
+  width: calc(100% - 14px) !important;
+  margin-right: 2px !important;
 }
