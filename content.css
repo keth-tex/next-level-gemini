@@ -14,8 +14,10 @@
   --gemini-bg-dnd-chat:           rgb(82, 83, 83);
 
   /* Text Colors */
-  --gemini-text-primary:          #dde2e9; /* Brighter, used for Headers/Folders */
-  --gemini-text-variant:          var(--gem-sys-color--on-surface-variant); /* Muted, used for Buttons/Items */
+  /*--gemini-text-primary:          #dde2e9; /* Brighter, used for Headers/Folders */
+  --gemini-text-primary:          var(--gem-sys-color--on-surface-variant); /* Brighter, used for Headers/Folders */
+  /* --gemini-text-variant:          var(--gem-sys-color--on-surface-variant); /* Muted, used for Buttons/Items */
+  --gemini-text-variant:          rgb(196, 199, 197); /* Muted, used for Buttons/Items */
   --gemini-text-selected:         var(--sidenav-button-selected-text-color);
   --gemini-text-disabled:         #5f6368;
 
