@@ -541,3 +541,32 @@ top-bar-actions {
     border-bottom-left-radius: var(--gemini-radius) !important;
     border-bottom-right-radius: var(--gemini-radius) !important;
 }
+
+/* Inline Code in User Prompts */
+.gemini-prompt-inline-code {
+  font-size: var(--gem-sys-typography-type-scale--body-m-font-size);
+  font-weight: var(--gem-sys-typography-type-scale--body-m-font-weight);
+  letter-spacing: var(--gem-sys-typography-type-scale--body-m-font-tracking);
+  line-height: var(--gem-sys-typography-type-scale--body-m-line-height);
+  --gds-type-scale-default-wdth: var(--gem-sys-typography-type-scale--body-m-font-width);
+  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond);
+  font-family: Google Sans Mono, monospace;
+  color: var(--gem-sys-color--on-surface-variant);
+  background-color: var(--gem-sys-color--surface-container-high);
+  border-radius: 6px;
+  padding: 1px 6px;
+  /* font-family: 'Roboto Mono', monospace; /* Oder eine passende Monospace Font */
+  /* background-color: var(--gemini-bg-item-hover, #1e1f20); /* Nutzt existierende Variable */
+  /* color: var(--gemini-text-primary, #e3e3e3); */
+  /* padding: 2px 6px; */
+  /* font-size: 0.9em; */
+  /* border: 1px solid rgba(255, 255, 255, 0.1); */
+  /* white-space: pre-wrap; /* Zeilenumbrüche erhalten, falls nötig */
+}
+
+.gds-body-m .gemini-prompt-inline-code {
+  font-size: 13px !important;
+  border-radius: 5px !important;
+  padding: 1px 5px !important;
+  opacity: .8 !important;
+}

@@ -230,6 +230,45 @@ function updateTOCState() {
     }
 }
 
+// === HELPER FUNCTIONS FOR TEXT HANDLING ===
+
+/**
+ * Extrahiert den Text aus einem Prompt-Element.
+ * Falls Inline-Code-Elemente vorhanden sind (durch feature-inline-code.js),
+ * werden diese zurück in Backticks gewandelt, damit der Text konsistent ist.
+ */
+function reconstructRawPrompt(element) {
+    const clone = element.cloneNode(true);
+    
+    // Stelle Backticks wieder her, falls sie bereits gerendert wurden
+    const codeElements = clone.querySelectorAll('.gemini-prompt-inline-code');
+    codeElements.forEach(el => {
+        el.replaceWith('`' + el.textContent + '`');
+    });
+    
+    return clone.innerText.trim().replace(/\n+/g, '\n');
+}
+
+/**
+ * Rendert Text mit Backticks als HTML mit <code> Elementen in einen Container.
+ */
+function renderTOCItemText(text, container) {
+    const parts = text.split(/(`[^`]+`)/g);
+
+    parts.forEach(part => {
+        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+            // Code-Segment
+            const codeEl = document.createElement('code');
+            codeEl.className = 'gemini-prompt-inline-code';
+            codeEl.textContent = part.slice(1, -1); // Backticks entfernen
+            container.appendChild(codeEl);
+        } else {
+            // Normaler Text
+            container.appendChild(document.createTextNode(part));
+        }
+    });
+}
+
 // === TOC UPDATE & SCROLL SPY ===
 
 function updateTOC() {
@@ -238,11 +277,7 @@ function updateTOC() {
 
   const blocks = document.querySelectorAll(TOC_CONVERSATION_BLOCK_SELECTOR);
   
-  // --- STEP 1: SMART UPDATE CHECK ---
-  // Instead of rebuilding blindly (which causes flicker/scroll jumps),
-  // we check if the content has actually changed.
-  
-  // 1a. Gather current data from the DOM (Chat Blocks)
+  // 1a. Gather current data using the robust text reconstructor
   const currentData = [];
   blocks.forEach((block, index) => {
       const promptEl = block.querySelector(TOC_PROMPT_SELECTOR);
@@ -250,9 +285,12 @@ function updateTOC() {
           // Ensure ID is present for stability
           if (!block.id) block.id = `gemini-conversation-block-${index}`;
           
+          // NUTZE NEUE FUNKTION ZUR TEXT-EXTRAKTION
+          const rawText = reconstructRawPrompt(promptEl);
+          
           currentData.push({
               id: block.id,
-              text: promptEl.innerText.trim().replace(/\n+/g, '\n'),
+              text: rawText,
               block: block
           });
       }
@@ -264,24 +302,33 @@ function updateTOC() {
 
   if (isSame) {
       for (let i = 0; i < currentData.length; i++) {
-          const existingTextEl = existingItems[i].querySelector('.mdc-list-item__primary-text');
-          const existingText = existingTextEl ? existingTextEl.textContent : '';
+          // Hier müssen wir aufpassen: Der Text im DOM könnte nun HTML enthalten.
+          // Ein einfacher Text-Vergleich reicht oft, da .textContent auch den Inhalt von <code> liefert.
+          // Wir rekonstruieren den erwarteten Plain-Text für den Vergleich.
           
-          if (currentData[i].text !== existingText) {
+          const existingTextEl = existingItems[i].querySelector('.mdc-list-item__primary-text');
+          // Wir nutzen reconstructRawPrompt auch hier nicht, da wir keinen DOM-Zugriff auf die Ursprungsstruktur im TOC haben.
+          // Aber wir können prüfen, ob der reine Textinhalt gleich ist.
+          const existingTextContent = existingTextEl ? existingTextEl.textContent : '';
+          
+          // Um Fehlalarme durch Backticks im RawText vs. keine Backticks im gerenderten TOC zu vermeiden:
+          // RawText hat Backticks (`code`). ExistingTextContent hat "code" (ohne Backticks, da sie im HTML versteckt sind).
+          // Das ist schwierig exakt zu vergleichen ohne Re-Render.
+          // Strategie: Wir vergleichen einfach den Roh-String, wenn wir ihn als Attribut speichern würden.
+          // Oder wir akzeptieren einfach, dass wir neu rendern, wenn es Zweifel gibt.
+          // Simpler Hack für Performance: Wir speichern den raw text als data-attribute.
+          
+          const storedRawText = existingItems[i].dataset.rawText;
+          if (storedRawText !== currentData[i].text) {
               isSame = false;
               break;
           }
       }
   }
 
-  // 1c. ABORT if no changes detected
-  if (isSame) {
-      // Optional: Ensure ScrollSpy observes any new blocks even if list looked same 
-      // (edge case), but usually we just return to keep UI stable.
-      return; 
-  }
+  if (isSame) return;
 
-  // --- STEP 2: REBUILD (only if changed) ---
+  // --- STEP 2: REBUILD ---
   
   if (scrollSpyObserver) {
       scrollSpyObserver.disconnect();
@@ -307,8 +354,9 @@ function updateTOC() {
     const button = document.createElement('button');
     button.className = 'gemini-toc-item';
     button.dataset.targetId = item.id;
+    // Speichere den rohen Text für effizienten Vergleich beim nächsten Update
+    button.dataset.rawText = item.text;
     
-    // Ensure margins are visible when auto-scrolling in TOC
     button.style.scrollMarginBlock = '18px';
     
     const contentSpan = document.createElement('span');
@@ -317,10 +365,11 @@ function updateTOC() {
     const unscopedSpan = document.createElement('span');
     unscopedSpan.className = 'mat-mdc-list-item-unscoped-content mdc-list-item__primary-text';
     
-    const textSpan = document.createElement('span');
-    textSpan.className = 'gds-body-m';
-    textSpan.textContent = item.text;
+    // NUTZE NEUE FUNKTION ZUM RENDERN
+    renderTOCItemText(item.text, textSpan = document.createElement('span'));
+    textSpan.className = 'gds-body-m'; // Klasse auf den Container anwenden
     
+    // Da renderTOCItemText in 'textSpan' appendet, fügen wir diesen hinzu
     unscopedSpan.appendChild(textSpan);
     contentSpan.appendChild(unscopedSpan);
     
