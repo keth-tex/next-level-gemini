@@ -2,10 +2,8 @@
  * background.js
  * Handles background tasks, specifically the conversion of conversation data
  * to LaTeX and triggering the file download.
- * Fixes:
- * 1. Dedents code block content by stripping list indentation.
- * 2. Converts German quotes („“) to Guillemets (»«).
- * 3. Prevents line breaks between inline code and surrounding parentheses.
+ * Refactored Markdown parser to apply full block-level formatting (Lists, Headers, Tables) 
+ * to BOTH the Prompt and the Answer.
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -21,6 +19,7 @@ function processAndDownload(conversation) {
 
   try {
     for (const pair of conversation) {
+      // Separator matching the one used in split below
       const md_chunk = pair.prompt + "\n===\n" + pair.answer_md;
       const latex_chunk = parse_markdown_chunk(md_chunk);
       finalTex += latex_chunk + '\n\n';
@@ -169,6 +168,10 @@ function apply_latex_spacing(lines) {
   return final_spaced_lines;
 }
 
+/**
+ * Main parsing function.
+ * Prepares code blocks and splits content into Prompt and Answer.
+ */
 function parse_markdown_chunk(md_text) {
   const codeBlocks = [];
   const inlineCode = [];
@@ -250,56 +253,79 @@ function parse_markdown_chunk(md_text) {
     }
   );
 
-  let prompt_latex_block = "";
-  let body_md = md_text;
+  let prompt_latex = "";
+  let answer_latex = "";
+
   const parts = md_text.split(/\n===+\n/, 2);
 
-  // Process Prompt (if present)
   if (parts.length === 2) {
-    const prompt_md = parts[0];
-    body_md = parts[1];
-    const prompt_lines = prompt_md.trim().split('\n');
-    let processed_prompt_lines = [];
-    let p_i = 0;
-
-    while (p_i < prompt_lines.length) {
-      let line = prompt_lines[p_i];
-      const codeBlockMatch = line.match(/CBLOCK(\d+)CBLOCK/);
-
-      if (codeBlockMatch) {
-        const index = parseInt(codeBlockMatch[1], 10);
-        const block = codeBlocks[index];
-        processed_prompt_lines.push('\\vspace{.25\\baselineskip}');
-        processed_prompt_lines.push(`\\begin{code}{${block.shorthand}}{${block.label}}`);
-        const codeLines = block.code.split('\n');
-        for (const codeLine of codeLines) {
-          processed_prompt_lines.push(codeLine);
-        }
-        processed_prompt_lines.push(`\\end{code}`);
-        processed_prompt_lines.push('\\vspace{.5\\baselineskip}');
-        p_i++;
-      } else {
-        processed_prompt_lines.push(process_inline(line));
-        p_i++;
-      }
-    }
-
-    const spaced_prompt_lines = apply_latex_spacing(processed_prompt_lines);
-    const prompt_latex_body = spaced_prompt_lines.join('\n');
-    prompt_latex_block = (
+    // Prompt Processing (NOW USES FULL PARSER)
+    const prompt_lines = parts[0].trim().split('\n');
+    const processed_prompt = convert_md_lines_to_latex(prompt_lines, codeBlocks);
+    const spaced_prompt = apply_latex_spacing(processed_prompt);
+    
+    prompt_latex = (
       `\\addvspace{3\\baselineskip}\n\n` +
       `\\begin{bgbox}\n` +
-      `${prompt_latex_body}\n` +
+      `${spaced_prompt.join('\n')}\n` +
       `\\end{bgbox}\n\n` +
       `\\addvspace{\\baselineskip}\n\n` +
       `\\relpospar[scale=0.95][-1.05cm,-.3cm]{gemini}\n`
     );
+
+    // Answer Processing
+    const answer_lines = parts[1].split('\n');
+    const processed_answer = convert_md_lines_to_latex(answer_lines, codeBlocks);
+    const spaced_answer = apply_latex_spacing(processed_answer);
+    answer_latex = spaced_answer.join('\n');
+
   } else {
-    body_md = md_text;
+    // No prompt separator found, treat all as answer
+    const answer_lines = md_text.split('\n');
+    const processed_answer = convert_md_lines_to_latex(answer_lines, codeBlocks);
+    const spaced_answer = apply_latex_spacing(processed_answer);
+    answer_latex = spaced_answer.join('\n');
   }
 
-  // Process Body
-  const lines = body_md.split('\n');
+  let full_latex = prompt_latex + answer_latex;
+
+  // Post-Processing
+  full_latex = full_latex.replace(/IMATH(\d+)IMATH/g, (match, index) => {
+    return `$${inlineMath[index]}$`;
+  });
+
+  function applyStickyBrackets(str) {
+      str = str.replace(/([(\[]|\\\{)(ICODE\d+ICODE)/g, '$1\\penalty10000 $2');
+      str = str.replace(/(ICODE\d+ICODE)([)\]]|\\\})/g, '$1\\penalty10000 $2');
+      return str;
+  }
+  full_latex = applyStickyBrackets(full_latex);
+
+  const replacementCallback = (inlineCode) => (match, index) => {
+    const code = inlineCode[index];
+    if (typeof code === 'undefined') return match;
+    return `\\begin{hcH}\\mintinline{text}{${code}}\\end{hcH}`;
+  };
+  full_latex = full_latex.replace(/ICODE(\d+)ICODE/g, replacementCallback(inlineCode));
+
+  // Fallback expansion for CBLOCKs that ended up inline (rare edge case)
+  full_latex = full_latex.replace(/CBLOCK(\d+)CBLOCK/g, (match, index) => {
+      const block = codeBlocks[parseInt(index, 10)];
+      if (!block) return '';
+      return `\n\\begin{code}{${block.shorthand}}{${block.label}}\n${block.code}\n\\end{code}\n`;
+  });
+
+  // Cleanup newlines
+  full_latex = full_latex.replace(/\n{3,}/g, '\n\n');
+
+  return full_latex;
+}
+
+/**
+ * Core function to convert Markdown lines to LaTeX.
+ * Handles Lists, Headers, Tables, HRs, and Code Blocks.
+ */
+function convert_md_lines_to_latex(lines, codeBlocks) {
   let latex_lines = [];
   let list_stack = [];
   let in_table = false;
@@ -419,9 +445,12 @@ function parse_markdown_chunk(md_text) {
         /^([\d\.]+|[a-zA-Z]\)|[IVXLCDM]+\.|[ivxlcdm]+\.)\s+/,
         '$1\\hs '
       );
-      if (level === 2) latex_lines.push(`\\section[nonumber=true]{${title_final}}`);
+      if (level === 1) latex_lines.push(`\\chapter[nonumber=true]{${title_final}}`);
+      else if (level === 2) latex_lines.push(`\\section[nonumber=true]{${title_final}}`);
       else if (level === 3) latex_lines.push(`\\subsection[nonumber=true]{${title_final}}`);
       else if (level === 4) latex_lines.push(`\\subsubsection[nonumber=true]{${title_final}}`);
+      else if (level === 5) latex_lines.push(`\\paragraph[nonumber=true]{${title_final}}`);
+      else if (level === 6) latex_lines.push(`\\subparagraph[nonumber=true]{${title_final}}`);
       i++;
       continue;
     }
@@ -493,58 +522,6 @@ function parse_markdown_chunk(md_text) {
     latex_lines.push('\\end{tabularx}');
     latex_lines.push('\\addvspace{\\baselineskip}');
   }
-
-  const final_spaced_body_lines = apply_latex_spacing(latex_lines);
-  let body = final_spaced_body_lines.join('\n');
-
-  const replacementCallback = (inlineCode) => (match, index) => {
-    const code = inlineCode[index];
-    if (typeof code === 'undefined') {
-      console.warn(`[JS-Parser] Could not find ICODE index ${index}.`);
-      return match;
-    }
-    return `\\begin{hcH}\\mintinline{text}{${code}}\\end{hcH}`;
-  };
-
-  body = body.replace(/IMATH(\d+)IMATH/g, (match, index) => {
-    return `$${inlineMath[index]}$`;
-  });
-  prompt_latex_block = prompt_latex_block.replace(/IMATH(\d+)IMATH/g, (match, index) => {
-    return `$${inlineMath[index]}$`;
-  });
-
-  // NEW: Sticky Brackets Logic
-  // Injects \penalty10000 between inline code and directly adjacent parentheses/brackets
-  function applyStickyBrackets(str) {
-      // Opening: ( [ or escaped \{ followed immediately by ICODE
-      str = str.replace(/([(\[]|\\\{)(ICODE\d+ICODE)/g, '$1\\penalty10000 $2');
-      
-      // Closing: ICODE followed immediately by ) ] or escaped \}
-      str = str.replace(/(ICODE\d+ICODE)([)\]]|\\\})/g, '$1\\penalty10000 $2');
-      return str;
-  }
-
-  body = applyStickyBrackets(body);
-  prompt_latex_block = applyStickyBrackets(prompt_latex_block);
-
-  const handleReplace = replacementCallback(inlineCode);
-  body = body.replace(/ICODE(\d+)ICODE/g, handleReplace);
-  prompt_latex_block = prompt_latex_block.replace(/ICODE(\d+)ICODE/g, handleReplace);
-
-  // Residual CBLOCK expansion.
-  // If a CBLOCK placeholder ended up inside a line (e.g., inside \item ...), it won't have been
-  // handled by the block logic above. We expand it here to ensure content isn't lost or ugly.
-  // This handles cases like "* Item 1 CBLOCK..." which are now correctly treated as Lists.
-  body = body.replace(/CBLOCK(\d+)CBLOCK/g, (match, index) => {
-      const block = codeBlocks[parseInt(index, 10)];
-      if (!block) return '';
-      // We insert a newline before the block to ensure it breaks out of the text line in LaTeX
-      return `\n\\begin{code}{${block.shorthand}}{${block.label}}\n${block.code}\n\\end{code}\n`;
-  });
-
-  let body_to_return = body;
-  body_to_return = body_to_return.replace(/\n{3,}/g, '\n\n');
-  prompt_latex_block = prompt_latex_block.replace(/\n{3,}/g, '\n\n');
-
-  return prompt_latex_block + body_to_return;
+  
+  return latex_lines;
 }
