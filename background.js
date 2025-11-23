@@ -2,6 +2,10 @@
  * background.js
  * Handles background tasks, specifically the conversion of conversation data
  * to LaTeX and triggering the file download.
+ * Fixes:
+ * 1. Dedents code block content by stripping list indentation.
+ * 2. Converts German quotes („“) to Guillemets (»«).
+ * 3. Prevents line breaks between inline code and surrounding parentheses.
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -81,7 +85,11 @@ function process_inline(text) {
   text_neu = text_neu.replace(/u\. a\./g, 'u.\\,a.');
   text_neu = text_neu.replace(/(\d+)\s*[–-]\s*(\d+)/g, '\\fromto{$1}{$2}');
   text_neu = text_neu.replace(/-/g, '\\h{}');
+  // ASCII Quotes
   text_neu = text_neu.replace(/"(.*?)"/g, '»$1«');
+  // NEW: German Quotes
+  text_neu = text_neu.replace(/„(.*?)“/g, '»$1«');
+  
   text_neu = text_neu.replace(/\.\.\./g, '…');
 
   // Handle Emojis
@@ -175,17 +183,31 @@ function parse_markdown_chunk(md_text) {
   md_text = md_text.replace(/\u00A0/g, ' ');
 
   // Parse Internal Code Blocks
+  // Regex allows whitespace/indentation. Dedent logic strips it from content.
   md_text = md_text.replace(
-    /```gemini-internal-code\n({.*?})\n([\s\S]*?)\n```/g,
-    (match, metadataJson, code) => {
+    /^(\s*)```gemini-internal-code\s*\n[ \t]*({.*?})[ \t]*\n([\s\S]*?)\n^\s*```/gm,
+    (match, indent, metadataJson, code) => {
       try {
         const metadata = JSON.parse(metadataJson);
+        
+        // Dedent logic
+        const lines = code.split('\n');
+        const dedentedCode = lines.map(line => {
+            // Only strip if the line actually starts with the indent.
+            if (line.startsWith(indent)) {
+                return line.substring(indent.length);
+            }
+            return line;
+        }).join('\n');
+
         codeBlocks.push({
           shorthand: metadata.shorthand,
           label: metadata.label,
-          code: code.trimEnd()
+          code: dedentedCode.trimEnd()
         });
-        return `\nCBLOCK${codeBlocks.length - 1}CBLOCK\n`;
+        
+        // We use the indent here to place the placeholder correctly in the structure
+        return `\n${indent}CBLOCK${codeBlocks.length - 1}CBLOCK\n`;
       } catch (e) {
         return '\n[Code block parsing error]\n';
       }
@@ -193,9 +215,10 @@ function parse_markdown_chunk(md_text) {
   );
 
   // Parse Standard Code Blocks
+  // Regex captures leading indentation into group 1
   md_text = md_text.replace(
-    /^\s*```([^\n]*)(\n)([\s\S]*?)^\s*```\s*$/gm,
-    (match, lang, newline, code) => {
+    /^(\s*)```([^\n]*)(\n)([\s\S]*?)^\s*```\s*$/gm,
+    (match, indent, lang, newline, code) => {
       const trimmedLang = lang.trim();
       const shorthand = trimmedLang.toLowerCase() || 'text';
       const label = trimmedLang || 'Code';
@@ -204,7 +227,8 @@ function parse_markdown_chunk(md_text) {
         label: label,
         code: code.trimEnd()
       });
-      return `\nCBLOCK${codeBlocks.length - 1}CBLOCK\n`;
+      // Preserve indentation before the placeholder
+      return `\n${indent}CBLOCK${codeBlocks.length - 1}CBLOCK\n`;
     }
   );
 
@@ -284,13 +308,22 @@ function parse_markdown_chunk(md_text) {
 
   while (i < lines.length) {
     let line = lines[i];
-    const codeBlockMatch = line.match(/CBLOCK(\d+)CBLOCK/);
+    
+    // STRICT CHECK: Line MUST match format "^(indent)CBLOCK(id)CBLOCK$".
+    const codeBlockMatch = line.match(/^(\s*)CBLOCK(\d+)CBLOCK\s*$/);
 
     if (codeBlockMatch) {
-      while (list_stack.length > 0) {
+      // Determine Indentation of the Code Block Line
+      const line_indent = codeBlockMatch[1].length;
+      let current_stack_indent = list_stack.length > 0 ? list_stack[list_stack.length - 1].indent : -1;
+
+      // Close list ONLY if code block is LESS indented (or equal) than current item
+      while (list_stack.length > 0 && line_indent <= current_stack_indent) {
         latex_lines.push(`\\end{${list_stack.pop().type}}`);
+        current_stack_indent = list_stack.length > 0 ? list_stack[list_stack.length - 1].indent : -1;
       }
-      const index = parseInt(codeBlockMatch[1], 10);
+
+      const index = parseInt(codeBlockMatch[2], 10); // Group 2 because Group 1 is indent
       const block = codeBlocks[index];
       latex_lines.push('\\vspace{.25\\baselineskip}');
       latex_lines.push(`\\begin{code}{${block.shorthand}}{${block.label}}`);
@@ -480,9 +513,34 @@ function parse_markdown_chunk(md_text) {
     return `$${inlineMath[index]}$`;
   });
 
+  // NEW: Sticky Brackets Logic
+  // Injects \penalty10000 between inline code and directly adjacent parentheses/brackets
+  function applyStickyBrackets(str) {
+      // Opening: ( [ or escaped \{ followed immediately by ICODE
+      str = str.replace(/([(\[]|\\\{)(ICODE\d+ICODE)/g, '$1\\penalty10000 $2');
+      
+      // Closing: ICODE followed immediately by ) ] or escaped \}
+      str = str.replace(/(ICODE\d+ICODE)([)\]]|\\\})/g, '$1\\penalty10000 $2');
+      return str;
+  }
+
+  body = applyStickyBrackets(body);
+  prompt_latex_block = applyStickyBrackets(prompt_latex_block);
+
   const handleReplace = replacementCallback(inlineCode);
   body = body.replace(/ICODE(\d+)ICODE/g, handleReplace);
   prompt_latex_block = prompt_latex_block.replace(/ICODE(\d+)ICODE/g, handleReplace);
+
+  // Residual CBLOCK expansion.
+  // If a CBLOCK placeholder ended up inside a line (e.g., inside \item ...), it won't have been
+  // handled by the block logic above. We expand it here to ensure content isn't lost or ugly.
+  // This handles cases like "* Item 1 CBLOCK..." which are now correctly treated as Lists.
+  body = body.replace(/CBLOCK(\d+)CBLOCK/g, (match, index) => {
+      const block = codeBlocks[parseInt(index, 10)];
+      if (!block) return '';
+      // We insert a newline before the block to ensure it breaks out of the text line in LaTeX
+      return `\n\\begin{code}{${block.shorthand}}{${block.label}}\n${block.code}\n\\end{code}\n`;
+  });
 
   let body_to_return = body;
   body_to_return = body_to_return.replace(/\n{3,}/g, '\n\n');

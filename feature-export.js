@@ -1,6 +1,7 @@
 /**
  * feature-export.js
  * Handles the conversion of chat content to LaTeX and the Export Button logic.
+ * Correctly identifies Gemini code blocks structure to handle nesting and language labels.
  */
 
 // === TURNDOWN SETUP ===
@@ -23,25 +24,62 @@ turndownService.use(turndownPluginGfm.gfm);
 
 turndownService.addRule('geminiCodeBlock', {
   filter: function(node) {
-    return (
-      node.querySelector('.code-block-decoration') &&
-      node.querySelector('.code-container')
-    );
+    // 1. Must be a DIV
+    if (node.nodeName !== 'DIV') return false;
+
+    // 2. Check for DIRECT child with class 'code-block-decoration'.
+    // This is the specific header containing "CSS", "Python", etc.
+    // By checking only direct children, we avoid matching parent containers like <li>.
+    let hasDirectDecoration = false;
+    for (let i = 0; i < node.children.length; i++) {
+      if (node.children[i].classList.contains('code-block-decoration')) {
+        hasDirectDecoration = true;
+        break;
+      }
+    }
+    
+    // If it doesn't have the decoration directly, it's not the wrapper we want.
+    if (!hasDirectDecoration) return false;
+
+    // 3. It must also contain the code container (somewhere inside)
+    return !!node.querySelector('.code-container');
   },
   replacement: function(content, node) {
+    // Retrieve the Label (e.g., "CSS")
     const labelNode = node.querySelector('.code-block-decoration');
+    // Retrieve the Code content
     const codeNode = node.querySelector('.code-container');
+    
     if (!codeNode) return '';
-    const label = labelNode ? labelNode.textContent.trim() : 'Code';
+    
+    // Clean up label text (remove "Copy code" button text if caught)
+    // Usually the label is in a span or just text text node, but let's be safe.
+    // Based on your HTML: <span class="...">CSS</span>
+    let label = 'Code';
+    if (labelNode) {
+        // Get the text of the first span or just the node text, ignoring buttons
+        const span = labelNode.querySelector('span');
+        if (span) {
+            label = span.textContent.trim();
+        } else {
+            // Fallback: Text content of decoration div, excluding button text if possible
+            // But simple textContent is usually enough if structure is clean
+            label = labelNode.firstChild.textContent.trim(); 
+        }
+    }
+
     let shorthand = label.toLowerCase();
     if (shorthand === 'code' || shorthand === '' || shorthand === 'code-snippet') {
       shorthand = 'text';
     }
+    
     const rawCode = codeNode.textContent.replace(/\u00A0/g, ' ');
     const metadata = JSON.stringify({
       shorthand: shorthand,
       label: label
     });
+    
+    // The newlines here ensure Turndown treats this as a distinct block
     return `\n\n\`\`\`gemini-internal-code\n${metadata}\n${rawCode}\n\`\`\`\n\n`;
   }
 });
