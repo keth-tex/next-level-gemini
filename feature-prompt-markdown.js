@@ -1,15 +1,13 @@
 /**
  * feature-prompt-markdown.js
  * Parses Markdown syntax in user prompts and renders it as HTML.
- * Handles: Headers, Lists, Bold/Italic, Links, Horizontal Rules, Inline Code.
- * Uses hyphenated placeholders to strictly avoid conflict with italic/bold parsing (underscores).
+ * Handles: Headers, Lists, Bold/Italic, Links, Horizontal Rules, Inline Code AND Code Blocks.
+ * Supports both modern ('highlightElement') and legacy ('highlightBlock') Highlight.js APIs.
  */
 
 const MARKDOWN_PROCESSED_ATTR = 'data-gemini-markdown-processed';
 
 function renderMarkdownInPrompts() {
-  // Finde alle Prompt-Container, die noch nicht verarbeitet wurden.
-  // .query-text ist der Container, der die Textzeilen (<p class="query-text-line">) enthält.
   const queryContainers = document.querySelectorAll(`.query-text:not([${MARKDOWN_PROCESSED_ATTR}])`);
 
   queryContainers.forEach(container => {
@@ -23,8 +21,9 @@ function renderMarkdownInPrompts() {
     }
     if (lines.length === 0) return;
 
-    // Extrahiere den reinen Text Zeile für Zeile
-    const rawLines = lines.map(line => line.textContent);
+    // Use innerText to get rendered text (strips HTML source indentation).
+    // Join and Split normalizes soft-breaks (<br>) inside paragraphs.
+    const rawLines = lines.map(line => line.innerText.trimEnd()).join('\n').split('\n');
     
     // Parse Markdown und erstelle neue DOM-Knoten
     const newNodes = parseMarkdownToNodes(rawLines);
@@ -38,9 +37,13 @@ function renderMarkdownInPrompts() {
 function parseMarkdownToNodes(lines) {
   const nodes = [];
   let listStack = []; 
-  let listType = null; // 'ul' oder 'ol'
+  let listType = null;
+  
+  // State for Code Blocks
+  let inCodeBlock = false;
+  let codeBlockLang = '';
+  let codeBlockContent = [];
 
-  // Hilfsfunktion: Schließt eine offene Liste und fügt sie den Nodes hinzu
   const flushList = () => {
     if (listStack.length === 0) return;
     
@@ -62,7 +65,96 @@ function parseMarkdownToNodes(lines) {
     listType = null;
   };
 
+  const flushCodeBlock = () => {
+      // 1. Outer Container: .code-block
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block';
+
+      // 2. Header: .code-block-decoration
+      const header = document.createElement('div');
+      header.className = 'code-block-decoration header-formatted gds-title-s';
+      
+      // Language Label
+      const langSpan = document.createElement('span');
+      langSpan.textContent = codeBlockLang.trim() || 'Code';
+      header.appendChild(langSpan);
+      
+      // (Optional: Buttons container could go here, skipped for now as strictly display logic)
+      
+      wrapper.appendChild(header);
+
+      // 3. Body: .formatted-code-block-internal-container -> .animated-opacity -> pre -> code
+      const internalContainer = document.createElement('div');
+      internalContainer.className = 'formatted-code-block-internal-container';
+      
+      const animatedWrapper = document.createElement('div');
+      animatedWrapper.className = 'animated-opacity';
+
+      const pre = document.createElement('pre');
+      
+      const code = document.createElement('code');
+      code.className = 'code-container formatted';
+      // Optional: Add language class for syntax highlighters if needed later
+      if (codeBlockLang) {
+          code.classList.add(`language-${codeBlockLang.toLowerCase()}`);
+      }
+      
+      // SAFE CONTENT: textContent escapes HTML entities automatically
+      code.textContent = codeBlockContent.join('\n');
+      
+      // ROBUST HIGHLIGHTING CALL
+      // Checks for both modern (highlightElement) and legacy (highlightBlock) APIs
+      if (typeof hljs !== 'undefined') {
+          try {
+              if (typeof hljs.highlightElement === 'function') {
+                  hljs.highlightElement(code);
+              } else if (typeof hljs.highlightBlock === 'function') {
+                  hljs.highlightBlock(code);
+              } else {
+                  console.warn('Gemini Extension: No suitable highlighting function found in hljs.');
+              }
+          } catch (e) {
+              console.warn('Gemini Extension: Highlighting failed', e);
+          }
+      }
+      
+      pre.appendChild(code);
+      animatedWrapper.appendChild(pre);
+      internalContainer.appendChild(animatedWrapper);
+      wrapper.appendChild(internalContainer);
+      
+      nodes.push(wrapper);
+      
+      // Reset
+      codeBlockContent = [];
+      codeBlockLang = '';
+  };
+
   lines.forEach((line, index) => {
+    // Check for code block start/end
+    // Note: innerText might leave trailing \r, so trimRight is safer for the check
+    if (line.trimEnd().startsWith('```')) {
+        if (inCodeBlock) {
+            // End of block
+            inCodeBlock = false;
+            flushCodeBlock();
+            return;
+        } else {
+            // Start of block
+            flushList(); // Close any open list first
+            inCodeBlock = true;
+            codeBlockLang = line.trimEnd().substring(3).trim();
+            return;
+        }
+    }
+
+    // If inside code block, collect lines strictly (no parsing)
+    if (inCodeBlock) {
+        codeBlockContent.push(line);
+        return;
+    }
+
+    // NORMAL MARKDOWN LOGIC
     const trimmed = line.trim();
 
     // 1. Horizontale Linie (--- oder ***)
@@ -110,6 +202,7 @@ function parseMarkdownToNodes(lines) {
     // 4. Paragraph OR Empty Line
     flushList();
     
+    // Use trimmed check for empty lines to insert HR
     if (trimmed.length === 0) {
         // Replace empty line with Horizontal Rule
         const hr = document.createElement('hr');
@@ -125,6 +218,10 @@ function parseMarkdownToNodes(lines) {
 
   // Am Ende noch offene Listen schließen
   flushList();
+  if (inCodeBlock) {
+      // Auto-close code block if user forgot closing backticks
+      flushCodeBlock();
+  }
   
   return nodes;
 }

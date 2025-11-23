@@ -615,6 +615,7 @@ ol.gemini-prompt-list {
 ul.gemini-prompt-list {
   padding-inline-start: 1.6875rem !important;
 }
+
 .gemini-prompt-list > li,
 .gemini-prompt-list > li > p {
   margin: var(--gem-sys-spacing--s) 0 !important;
@@ -681,4 +682,162 @@ ul.gemini-prompt-list {
 
 .gemini-h6 {
   font-size: var(--gem-sys-typography-markdown-type-scale--h-6-font-size) !important;
+}
+
+/* --- GOOGLE GEMINI DARK SYNTAX HIGHLIGHTING (Refined) --- */
+
+.query-text .formatted-code-block-internal-container {
+  background-color: var(--gem-sys-color--surface-container);
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+/* Structural Styles (Scoped to .query-text) */
+.query-text .code-block {
+  width: 452px;
+  /* background-color: var(--gemini-bg-surface); */
+  margin-top: 16px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: 8px !important;
+  /* border: 1px solid rgba(255, 255, 255, 0.1); */
+}
+
+.query-text .code-block-decoration {
+  background-color: var(--gem-sys-color--surface-container);
+  border-radius: var(--gem-sys-spacing--l) var(--gem-sys-spacing--l) var(--gem-sys-spacing--xs) var(--gem-sys-spacing--xs);
+  -webkit-box-pack: justify;
+  -moz-box-pack: justify;
+  -ms-flex-pack: justify;
+  justify-content: space-between;
+  padding: var(--gem-sys-spacing--s) var(--gem-sys-spacing--s) var(--gem-sys-spacing--s) var(--gem-sys-spacing--l);
+  margin-top: var(--gem-sys-spacing--xs);
+  margin-bottom: 2px;
+  height: 32px;
+  color: var(--gem-sys-color--on-surface-variant);
+  padding-inline-start: var(--gem-sys-spacing--l);
+  min-height: var(--gem-sys-spacing--xxl);
+  display: flex;
+  -webkit-box-align: center;
+  -moz-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  top: -16px;
+  z-index: 1;
+  position: sticky;
+  /* background-color: var(--gemini-bg-surface); */
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  /* padding: 8px 16px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.85em;
+  font-weight: 500;
+  color: var(--gemini-text-variant);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  min-height: 24px; */
+}
+
+.query-text .formatted-code-block-internal-container pre {
+  margin: 0;
+  overflow: hidden;
+}
+
+.query-text .code-container {
+  font: 400 .875rem / 1.3125rem Google Sans Code, monospace;
+  
+  /* FIX: Enable horizontal scrolling only when needed and prevent wrapping */
+  display: block;
+  white-space: pre;
+  overflow-x: auto;
+  padding: 16px; /* Padding moved here to scroll with content */
+}
+
+/* --- GOOGLE GEMINI NATIVE SYNTAX HIGHLIGHTING (Variables) --- */
+
+/* Basis-Textfarbe */
+.query-text .code-container {
+  color: var(--gem-sys-color--on-surface-variant); /* Standard Text */
+}
+
+/* Kommentare */
+.query-text .hljs-comment,
+.query-text .hljs-quote {
+  color: var(--bard-color-code-comment);
+}
+
+.query-text .hljs-quote {
+  font-style: italic;
+}
+
+/* Variablen, HTML-Tags, CSS-Tags */
+/* User Mapping: selector-tag -> Red (variables) */
+.query-text .hljs-variable,
+.query-text .hljs-template-variable,
+.query-text .hljs-tag,
+.query-text .hljs-name,
+.query-text .hljs-selector-tag, 
+.query-text .hljs-deletion {
+  color: var(--bard-color-code-variables);
+}
+
+/* Keywords, CSS-Klassen, Selektoren */
+/* User Mapping: selector-class -> Purple (keyword) */
+.query-text .hljs-keyword,
+.query-text .hljs-selector-id,
+.query-text .hljs-selector-class,
+.query-text .hljs-selector-attr,
+.query-text .hljs-selector-pseudo {
+  color: var(--bard-color-code-keyword);
+}
+
+/* Strings, Symbole */
+.query-text .hljs-string,
+.query-text .hljs-symbol,
+.query-text .hljs-bullet,
+.query-text .hljs-addition {
+  color: var(--bard-color-code-string);
+}
+
+/* Zahlen, Literale, Konstanten */
+/* User Mapping: number -> Orange (literal) */
+.query-text .hljs-number,
+.query-text .hljs-literal,
+.query-text .hljs-type,
+.query-text .hljs-params {
+  color: var(--bard-color-code-literal);
+}
+
+/* Klassen, Funktionen, Titel */
+.query-text .hljs-title,
+.query-text .hljs-section,
+.query-text .hljs-class .hljs-title {
+  color: var(--bard-color-code-class);
+}
+
+/* Built-ins, Meta, Links */
+/* User Mapping: meta -> Blue (quotes-and-meta) */
+.query-text .hljs-built_in,
+.query-text .hljs-builtin-name,
+.query-text .hljs-meta,
+.query-text .hljs-link {
+  color: var(--bard-color-code-quotes-and-meta);
+}
+
+/* Attribute */
+/* User Mapping: attribute -> Light Gray.
+   Da keine explizite Variable existiert, nutzen wir 'inherit',
+   was auf die Standard-Textfarbe zurückfällt (meist hellgrau/weiß im Dark Mode). */
+.query-text .hljs-attr,
+.query-text .hljs-attribute {
+  color: inherit;
+}
+
+/* Fett / Kursiv */
+.query-text .hljs-strong { font-weight: bold; }
+.query-text .hljs-emphasis { font-style: italic; }
+
+.query-text .hljs-link {
+  text-decoration: underline;
 }
