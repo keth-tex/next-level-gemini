@@ -570,3 +570,115 @@ top-bar-actions {
   padding: 1px 5px !important;
   opacity: .8 !important;
 }
+
+/* Remove default margins from first/last elements to prevent layout shift */
+.query-text > :first-child {
+  margin-top: 0 !important;
+  margin-block-start: 0 !important;
+}
+.query-text > :last-child {
+  margin-bottom: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+/* Specific handling for lists at the start/end of prompt to ensure no margins on container OR items */
+/* First List */
+.query-text > .gemini-prompt-list:first-child,
+.query-text > .gemini-prompt-list:first-child > li:first-child {
+  margin-top: 0 !important;
+  margin-block-start: 0 !important;
+}
+
+/* Last List */
+.query-text > .gemini-prompt-list:last-child,
+.query-text > .gemini-prompt-list:last-child > li:last-child {
+  margin-bottom: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+/* Remove margin from paragraphs directly preceding a list to keep them grouped */
+p.query-text-line:has(+ .gemini-prompt-list) {
+  margin-bottom: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+.gemini-prompt-list {
+  margin-top: var(--gem-sys-spacing--s) !important;
+  margin-bottom: var(--gem-sys-spacing--l) !important;
+  overflow-wrap: break-word !important;
+}
+
+ol.gemini-prompt-list {
+  padding-inline-start: 1.75rem !important;
+}
+
+ul.gemini-prompt-list {
+  padding-inline-start: 1.6875rem !important;
+}
+.gemini-prompt-list > li,
+.gemini-prompt-list > li > p {
+  margin: var(--gem-sys-spacing--s) 0 !important;
+  padding-inline-start: var(--gem-sys-spacing--xs) !important;
+}
+
+.gemini-prompt-list > li > ::marker {
+  overflow-wrap: break-word !important;
+}
+
+.gemini-h1,
+.gemini-h2,
+.gemini-h3,
+.gemini-h4,
+.gemini-h5,
+.gemini-h6 {
+  margin: 1.75rem 0 var(--gem-sys-spacing--s) !important;
+}
+
+.gemini-h1 {
+    font-size: var(--gem-sys-typography-markdown-type-scale--h-1-font-size)!important ;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-1-font-weight)!important ;
+    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-1-font-tracking)!important ;
+    line-height: var(--gem-sys-typography-markdown-type-scale--h-1-line-height)!important ;
+    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-1-font-width)!important ;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+}
+
+.gemini-h2 {
+    font-size: var(--gem-sys-typography-markdown-type-scale--h-2-font-size)!important ;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-2-font-weight)!important ;
+    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-2-font-tracking)!important ;
+    line-height: var(--gem-sys-typography-markdown-type-scale--h-2-line-height)!important ;
+    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-2-font-width)!important ;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+}
+
+.gemini-h3 {
+    font-size: var(--gem-sys-typography-markdown-type-scale--h-3-font-size)!important ;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-3-font-weight)!important ;
+    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-3-font-tracking)!important ;
+    line-height: var(--gem-sys-typography-markdown-type-scale--h-3-line-height)!important ;
+    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-3-font-width)!important ;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+}
+
+.gemini-h4,
+.gemini-h5,
+.gemini-h6 {
+  font-weight: var(--gem-sys-typography-markdown-type-scale--h-4-font-weight)!important ;
+  letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-4-font-tracking)!important ;
+  line-height: var(--gem-sys-typography-markdown-type-scale--h-4-line-height)!important ;
+  --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-4-font-width)!important ;
+  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+}
+
+.gemini-h4 {
+  font-size: var(--gem-sys-typography-markdown-type-scale--h-4-font-size) !important;
+}
+
+.gemini-h5 {
+  font-size: var(--gem-sys-typography-markdown-type-scale--h-5-font-size) !important;
+}
+
+.gemini-h6 {
+  font-size: var(--gem-sys-typography-markdown-type-scale--h-6-font-size) !important;
+}

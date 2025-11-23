@@ -27,7 +27,7 @@
         "feature-export.js",
         "feature-resizer.js",
         "feature-toc.js",
-        "feature-inline-code.js",
+        "feature-prompt-markdown.js",
         "folders-data.js",
         "folders-ui.js",
         "folders-dnd.js",
