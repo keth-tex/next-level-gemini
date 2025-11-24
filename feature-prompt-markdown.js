@@ -2,7 +2,8 @@
  * feature-prompt-markdown.js
  * Parses Markdown syntax in user prompts and renders it as HTML.
  * Handles: Headers, Lists, Bold/Italic, Links, Horizontal Rules, Inline Code AND Code Blocks.
- * Implements "Hard Line Breaks". Every line in the source becomes its own paragraph <p>.
+ * Implements a robust masking system (placeholders) for Code, Links, and URLs
+ * to prevent Markdown renderers (like italic/bold) from breaking HTML attributes or paths.
  */
 
 const MARKDOWN_PROCESSED_ATTR = 'data-gemini-markdown-processed';
@@ -190,7 +191,7 @@ function parseMarkdownToNodes(lines) {
         const level = headerMatch[1].length;
         const text = headerMatch[2];
         const hTag = document.createElement('h' + level);
-        hTag.className = `gemini-prompt-header gemini-h${level}`;
+        hTag.className = `gemini-h${level}`;
         hTag.innerHTML = parseInline(text);
         nodes.push(hTag);
         return;
@@ -235,36 +236,57 @@ function parseMarkdownToNodes(lines) {
 }
 
 /**
- * Verarbeitet Inline-Formatierungen: Code, Bold, Italic, Links
+ * Parses inline markdown with a robust masking strategy to prevent recursion issues.
+ * Order: Escape HTML -> Mask Code -> Mask Links/URLs -> Parse Bold/Italic -> Unmask.
  */
 function parseInline(text) {
-  // HTML Escaping (Basic) um Injection zu verhindern, da wir innerHTML nutzen
+  // 1. Escape HTML to prevent XSS and confusion
   let out = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  // 1. Inline Code (Backticks) - Zuerst verarbeiten und schützen!
-  const codeSegments = [];
+  const protectedSegments = [];
   
-  // 1. Inline Code: Use placeholder WITHOUT underscores to prevent italic interference
+  // Helper to mask content
+  const mask = (content) => {
+      protectedSegments.push(content);
+      return `%%%GEMINI-PROTECTED-${protectedSegments.length - 1}%%%`;
+  };
+
+  // 2. Mask Inline Code (Backticks)
+  // We do this first so backticks inside links don't break things (though rare)
   out = out.replace(/(`[^`]+`)/g, (match) => {
-    codeSegments.push(match);
-    // Using dashes ensuring no * or _ exists in the placeholder
-    return `%%%GEMINI-INLINE-CODE-${codeSegments.length - 1}%%%`;
+    const content = match.slice(1, -1);
+    const html = `<code class="gemini-prompt-inline-code">${content}</code>`;
+    return mask(html);
   });
 
-  // 2. Links
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="gemini-prompt-link">$1</a>');
+  // 3. Mask Markdown Links [Text](Url)
+  // We parse them to HTML <a> tags and then immediately mask the whole tag.
+  // This prevents underscores in the URL/attributes from triggering italic parsing.
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+      const html = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="gemini-prompt-link">${linkText}</a>`;
+      return mask(html);
+  });
 
-  // 3. Bold
+  // 4. Mask Raw URLs (that weren't captured by MD links)
+  // This prevents "[http://example.com/file_name](http://example.com/file_name)" from becoming "[http://example.com/file](http://example.com/file)<em>name"
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  out = out.replace(urlRegex, (match) => {
+      const html = `<a href="${match}" target="_blank" rel="noopener noreferrer" class="gemini-prompt-link">${match}</a>`;
+      return mask(html);
+  });
+
+  // 5. Parse Formatting (Bold / Italic)
+  // Since links and code are masked as %%%...%%% (no * or _), they are safe now.
+  
+  // Bold (** or __)
   out = out.replace(/(\*\*|__)(.*?)\1/g, '<strong>$2</strong>');
 
-  // 4. Italic
+  // Italic (* or _)
   out = out.replace(/(\*|_)(.*?)\1/g, '<em>$2</em>');
 
-  // Restore Code
-  out = out.replace(/%%%GEMINI-INLINE-CODE-(\d+)%%%/g, (match, idx) => {
-    const raw = codeSegments[idx];
-    const content = raw.slice(1, -1); // Backticks entfernen
-    return `<code class="gemini-prompt-inline-code">${content}</code>`;
+  // 6. Unmask
+  out = out.replace(/%%%GEMINI-PROTECTED-(\d+)%%%/g, (match, idx) => {
+    return protectedSegments[idx];
   });
 
   return out;
