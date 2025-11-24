@@ -349,7 +349,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 }
 
 .gemini-toc-list {
-  padding: 0 2px 8px 12px !important;
+  padding: 0 2px 0 12px !important;
   margin: 0;
   overflow-y: scroll;
   overflow-x: hidden;
@@ -571,37 +571,6 @@ top-bar-actions {
   opacity: .8 !important;
 }
 
-/* Remove default margins from first/last elements to prevent layout shift */
-.query-text > :first-child {
-  margin-top: 0 !important;
-  margin-block-start: 0 !important;
-}
-.query-text > :last-child {
-  margin-bottom: 0 !important;
-  margin-block-end: 0 !important;
-}
-
-/* Specific handling for lists at the start/end of prompt to ensure no margins on container OR items */
-/* First List */
-.query-text > .gemini-prompt-list:first-child,
-.query-text > .gemini-prompt-list:first-child > li:first-child {
-  margin-top: 0 !important;
-  margin-block-start: 0 !important;
-}
-
-/* Last List */
-.query-text > .gemini-prompt-list:last-child,
-.query-text > .gemini-prompt-list:last-child > li:last-child {
-  margin-bottom: 0 !important;
-  margin-block-end: 0 !important;
-}
-
-/* Remove margin from paragraphs directly preceding a list to keep them grouped */
-p.query-text-line:has(+ .gemini-prompt-list) {
-  margin-bottom: 0 !important;
-  margin-block-end: 0 !important;
-}
-
 .gemini-prompt-list {
   margin-top: var(--gem-sys-spacing--s) !important;
   margin-bottom: var(--gem-sys-spacing--l) !important;
@@ -626,6 +595,39 @@ ul.gemini-prompt-list {
   overflow-wrap: break-word !important;
 }
 
+/* Remove default margins from first/last elements to prevent layout shift */
+.query-text > :first-child {
+  margin-top: 0 !important;
+  margin-block-start: 0 !important;
+}
+.query-text > :last-child {
+  margin-bottom: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+/* Specific handling for lists at the start/end of prompt to ensure no margins on container OR items */
+/* First List */
+.gemini-prompt-list:first-child,
+.gemini-prompt-list:first-child > li:first-child,
+.gemini-prompt-list:first-child > li:first-child > p:first-child {
+  margin-top: 0 !important;
+  margin-block-start: 0 !important;
+}
+
+/* Last List */
+.gemini-prompt-list:last-child,
+.gemini-prompt-list:last-child > li:last-child,
+.gemini-prompt-list:last-child > li:last-child > p:last-child {
+  margin-bottom: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+/* Remove margin from paragraphs directly preceding a list to keep them grouped */
+p.query-text-line:has(+ .gemini-prompt-list) {
+  margin-bottom: 0 !important;
+  margin-block-end: 0 !important;
+}
+
 .gemini-h1,
 .gemini-h2,
 .gemini-h3,
@@ -636,40 +638,40 @@ ul.gemini-prompt-list {
 }
 
 .gemini-h1 {
-    font-size: var(--gem-sys-typography-markdown-type-scale--h-1-font-size)!important ;
-    font-weight: var(--gem-sys-typography-markdown-type-scale--h-1-font-weight)!important ;
-    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-1-font-tracking)!important ;
-    line-height: var(--gem-sys-typography-markdown-type-scale--h-1-line-height)!important ;
-    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-1-font-width)!important ;
-    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+    font-size: var(--gem-sys-typography-markdown-type-scale--h-1-font-size) !important;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-1-font-weight) !important;
+    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-1-font-tracking) !important;
+    line-height: var(--gem-sys-typography-markdown-type-scale--h-1-line-height) !important;
+    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-1-font-width) !important;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
 }
 
 .gemini-h2 {
-    font-size: var(--gem-sys-typography-markdown-type-scale--h-2-font-size)!important ;
-    font-weight: var(--gem-sys-typography-markdown-type-scale--h-2-font-weight)!important ;
-    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-2-font-tracking)!important ;
-    line-height: var(--gem-sys-typography-markdown-type-scale--h-2-line-height)!important ;
-    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-2-font-width)!important ;
-    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+    font-size: var(--gem-sys-typography-markdown-type-scale--h-2-font-size) !important;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-2-font-weight) !important;
+    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-2-font-tracking) !important;
+    line-height: var(--gem-sys-typography-markdown-type-scale--h-2-line-height) !important;
+    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-2-font-width) !important;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
 }
 
 .gemini-h3 {
-    font-size: var(--gem-sys-typography-markdown-type-scale--h-3-font-size)!important ;
-    font-weight: var(--gem-sys-typography-markdown-type-scale--h-3-font-weight)!important ;
-    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-3-font-tracking)!important ;
-    line-height: var(--gem-sys-typography-markdown-type-scale--h-3-line-height)!important ;
-    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-3-font-width)!important ;
-    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+    font-size: var(--gem-sys-typography-markdown-type-scale--h-3-font-size) !important;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-3-font-weight) !important;
+    letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-3-font-tracking) !important;
+    line-height: var(--gem-sys-typography-markdown-type-scale--h-3-line-height) !important;
+    --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-3-font-width) !important;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
 }
 
 .gemini-h4,
 .gemini-h5,
 .gemini-h6 {
-  font-weight: var(--gem-sys-typography-markdown-type-scale--h-4-font-weight)!important ;
-  letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-4-font-tracking)!important ;
-  line-height: var(--gem-sys-typography-markdown-type-scale--h-4-line-height)!important ;
-  --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-4-font-width)!important ;
-  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond)!important ;
+  font-weight: var(--gem-sys-typography-markdown-type-scale--h-4-font-weight) !important;
+  letter-spacing: var(--gem-sys-typography-markdown-type-scale--h-4-font-tracking) !important;
+  line-height: var(--gem-sys-typography-markdown-type-scale--h-4-line-height) !important;
+  --gds-type-scale-default-wdth: var(--gem-sys-typography-markdown-type-scale--h-4-font-width) !important;
+  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
 }
 
 .gemini-h4 {
@@ -684,12 +686,26 @@ ul.gemini-prompt-list {
   font-size: var(--gem-sys-typography-markdown-type-scale--h-6-font-size) !important;
 }
 
+.gemini-prompt-hr {
+    margin-top: 20px;
+    margin-bottom: 25px;
+}
+
 /* --- GOOGLE GEMINI DARK SYNTAX HIGHLIGHTING (Refined) --- */
 
-.query-text .formatted-code-block-internal-container {
+.query-text .formatted-code-block-internal-container,
+.gemini-toc-item .formatted-code-block-internal-container {
   background-color: var(--gem-sys-color--surface-container);
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
+}
+
+.query-text .formatted-code-block-internal-container {
+  margin-bottom: var(--gem-sys-spacing--xs) !important;
+}
+
+.gemini-toc-item .formatted-code-block-internal-container {
+  margin-bottom: calc(var(--gem-sys-spacing--xs) * .8) !important;
 }
 
 /* Structural Styles (Scoped to .query-text) */
@@ -698,6 +714,17 @@ ul.gemini-prompt-list {
   /* background-color: var(--gemini-bg-surface); */
   margin-top: 16px;
   margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: 8px !important;
+  /* border: 1px solid rgba(255, 255, 255, 0.1); */
+}
+
+/* Structural Styles (Scoped to .query-text) */
+.gemini-toc-item .code-block {
+  width: calc(var(--gemini-toc-effective-width) - 62px) !important;
+  /* background-color: var(--gemini-bg-surface); */
+  margin-top: 13px;
+  margin-bottom: 13px;
   overflow: hidden;
   border-radius: 8px !important;
   /* border: 1px solid rgba(255, 255, 255, 0.1); */
@@ -739,89 +766,165 @@ ul.gemini-prompt-list {
   min-height: 24px; */
 }
 
-.query-text .formatted-code-block-internal-container pre {
+.gemini-toc-item .code-block-decoration {
+  background-color: var(--gem-sys-color--surface-container);
+  border-radius: var(--gem-sys-spacing--l) var(--gem-sys-spacing--l) var(--gem-sys-spacing--xs) var(--gem-sys-spacing--xs);
+  -webkit-box-pack: justify;
+  -moz-box-pack: justify;
+  -ms-flex-pack: justify;
+  justify-content: space-between;
+  padding: calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8);
+  margin-top: calc(var(--gem-sys-spacing--xs) * .8);
+  margin-bottom: 2px;
+  height: 26px;
+  color: var(--gem-sys-color--on-surface-variant);
+  padding-inline-start: calc(var(--gem-sys-spacing--l) * .8);
+  min-height: calc(var(--gem-sys-spacing--xxl) * .8);
+  display: flex;
+  -webkit-box-align: center;
+  -moz-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  top: -13px;
+  z-index: 1;
+  position: sticky;
+  font-size: calc(var(--gem-sys-typography-type-scale--title-s-font-size) * .8) !important;
+  letter-spacing: calc(var(--gem-sys-typography-type-scale--title-s-font-tracking) * .8) !important;
+  line-height: calc(var(--gem-sys-typography-type-scale--title-s-line-height) * .8) !important;
+  --gds-type-scale-default-wdth: calc(var(--gem-sys-typography-type-scale--title-s-font-width) * .8) !important;
+  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
+  /* background-color: var(--gemini-bg-surface); */
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  /* padding: 8px 16px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.85em;
+  font-weight: 500;
+  color: var(--gemini-text-variant);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  min-height: 24px; */
+}
+
+.query-text .formatted-code-block-internal-container pre,
+.gemini-toc-item .formatted-code-block-internal-container pre {
   margin: 0;
   overflow: hidden;
 }
 
-.query-text .code-container {
-  font: 400 .875rem / 1.3125rem Google Sans Code, monospace;
+.query-text .code-container,
+.gemini-toc-item .code-container {
+  color: var(--gem-sys-color--on-surface-variant); /* Standard Text */
   
   /* FIX: Enable horizontal scrolling only when needed and prevent wrapping */
   display: block;
   white-space: pre;
   overflow-x: auto;
+}
+
+.query-text .code-container {
+  font: 400 .875rem / 1.3125rem Google Sans Code, monospace;
   padding: 16px; /* Padding moved here to scroll with content */
+}
+
+.gemini-toc-item .code-container {
+  font: 400 calc(.875rem * .8) / calc(1.3125rem * .8) Google Sans Code, monospace;
+  padding: 13px; /* Padding moved here to scroll with content */
 }
 
 /* --- GOOGLE GEMINI NATIVE SYNTAX HIGHLIGHTING (Variables) --- */
 
-/* Basis-Textfarbe */
-.query-text .code-container {
-  color: var(--gem-sys-color--on-surface-variant); /* Standard Text */
-}
-
 /* Kommentare */
 .query-text .hljs-comment,
-.query-text .hljs-quote {
+.gemini-toc-item .hljs-comment,
+.query-text .hljs-quote,
+.gemini-toc-item .hljs-quote {
   color: var(--bard-color-code-comment);
 }
 
-.query-text .hljs-quote {
+.query-text .hljs-quote,
+.gemini-toc-item .hljs-quote {
   font-style: italic;
 }
 
 /* Variablen, HTML-Tags, CSS-Tags */
 /* User Mapping: selector-tag -> Red (variables) */
 .query-text .hljs-variable,
+.gemini-toc-item .hljs-variable,
 .query-text .hljs-template-variable,
+.gemini-toc-item .hljs-template-variable,
 .query-text .hljs-tag,
+.gemini-toc-item .hljs-tag,
 .query-text .hljs-name,
+.gemini-toc-item .hljs-name,
 .query-text .hljs-selector-tag, 
-.query-text .hljs-deletion {
+.gemini-toc-item .hljs-selector-tag, 
+.query-text .hljs-deletion,
+.gemini-toc-item .hljs-deletion {
   color: var(--bard-color-code-variables);
 }
 
 /* Keywords, CSS-Klassen, Selektoren */
 /* User Mapping: selector-class -> Purple (keyword) */
 .query-text .hljs-keyword,
+.gemini-toc-item .hljs-keyword,
 .query-text .hljs-selector-id,
+.gemini-toc-item .hljs-selector-id,
 .query-text .hljs-selector-class,
+.gemini-toc-item .hljs-selector-class,
 .query-text .hljs-selector-attr,
-.query-text .hljs-selector-pseudo {
+.gemini-toc-item .hljs-selector-attr,
+.query-text .hljs-selector-pseudo,
+.gemini-toc-item .hljs-selector-pseudo {
   color: var(--bard-color-code-keyword);
 }
 
 /* Strings, Symbole */
 .query-text .hljs-string,
+.gemini-toc-item .hljs-string,
 .query-text .hljs-symbol,
+.gemini-toc-item .hljs-symbol,
 .query-text .hljs-bullet,
-.query-text .hljs-addition {
+.gemini-toc-item .hljs-bullet,
+.query-text .hljs-addition,
+.gemini-toc-item .hljs-addition {
   color: var(--bard-color-code-string);
 }
 
 /* Zahlen, Literale, Konstanten */
 /* User Mapping: number -> Orange (literal) */
 .query-text .hljs-number,
+.gemini-toc-item .hljs-number,
 .query-text .hljs-literal,
+.gemini-toc-item .hljs-literal,
 .query-text .hljs-type,
-.query-text .hljs-params {
+.gemini-toc-item .hljs-type,
+.query-text .hljs-params,
+.gemini-toc-item .hljs-params {
   color: var(--bard-color-code-literal);
 }
 
 /* Klassen, Funktionen, Titel */
 .query-text .hljs-title,
+.gemini-toc-item .hljs-title,
 .query-text .hljs-section,
-.query-text .hljs-class .hljs-title {
+.gemini-toc-item .hljs-section,
+.query-text .hljs-class .hljs-title,
+.gemini-toc-item .hljs-class .hljs-title {
   color: var(--bard-color-code-class);
 }
 
 /* Built-ins, Meta, Links */
 /* User Mapping: meta -> Blue (quotes-and-meta) */
 .query-text .hljs-built_in,
+.gemini-toc-item .hljs-built_in,
 .query-text .hljs-builtin-name,
+.gemini-toc-item .hljs-builtin-name,
 .query-text .hljs-meta,
-.query-text .hljs-link {
+.gemini-toc-item .hljs-meta,
+.query-text .hljs-link,
+.gemini-toc-item .hljs-link {
   color: var(--bard-color-code-quotes-and-meta);
 }
 
@@ -830,14 +933,120 @@ ul.gemini-prompt-list {
    Da keine explizite Variable existiert, nutzen wir 'inherit',
    was auf die Standard-Textfarbe zurückfällt (meist hellgrau/weiß im Dark Mode). */
 .query-text .hljs-attr,
-.query-text .hljs-attribute {
+.gemini-toc-item .hljs-attr,
+.query-text .hljs-attribute,
+.gemini-toc-item .hljs-attribute {
   color: inherit;
 }
 
 /* Fett / Kursiv */
 .query-text .hljs-strong { font-weight: bold; }
+.gemini-toc-item .hljs-strong { font-weight: bold; }
 .query-text .hljs-emphasis { font-style: italic; }
+.gemini-toc-item .hljs-emphasis { font-style: italic; }
 
-.query-text .hljs-link {
+.query-text .hljs-link,
+.gemini-toc-item .hljs-link {
   text-decoration: underline;
 }
+
+/* --- TOC SPECIFIC CONTENT STYLES --- */
+/* This allows us to style the markdown elements differently inside the sidebar */
+
+.gemini-toc-content-wrapper pre {
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+.gemini-toc-content-wrapper {
+  /* font-size: 0.9em; /* Slightly smaller text in TOC */
+  width: calc(var(--gemini-toc-effective-width) - 62px) !important;
+  overflow: hidden !important;
+  display: block !important;
+  /* white-space: pre !important; */
+  overflow-x: auto !important;
+}
+
+.gds-body-m .gemini-h1,
+.gds-body-m .gemini-h2,
+.gds-body-m .gemini-h3,
+.gds-body-m .gemini-h4,
+.gds-body-m .gemini-h5,
+.gds-body-m .gemini-h6 {
+  margin: calc(1.75rem * .8) 0 calc(var(--gem-sys-spacing--s) * .8) !important;
+}
+
+.gds-body-m .gemini-h1 {
+    font-size: 18px !important ;
+    font-weight: var(--gem-sys-typography-markdown-type-scale--h-1-font-weight) !important;
+    letter-spacing: calc(var(--gem-sys-typography-markdown-type-scale--h-1-font-tracking) * .8) !important;
+    line-height: calc(var(--gem-sys-typography-markdown-type-scale--h-1-line-height) * .8) !important;
+    --gds-type-scale-default-wdth: calc(var(--gem-sys-typography-markdown-type-scale--h-1-font-width) * .8) !important;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
+}
+
+.gds-body-m .gemini-h2 {
+    font-size: 16px !important;
+    font-weight: calc(var(--gem-sys-typography-markdown-type-scale--h-2-font-weight) * .8) !important;
+    letter-spacing: calc(var(--gem-sys-typography-markdown-type-scale--h-2-font-tracking) * .8) !important;
+    line-height: calc(var(--gem-sys-typography-markdown-type-scale--h-2-line-height) * .8) !important;
+    --gds-type-scale-default-wdth: calc(var(--gem-sys-typography-markdown-type-scale--h-2-font-width) * .8) !important;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
+}
+
+.gds-body-m .gemini-h3 {
+    font-weight: calc(var(--gem-sys-typography-markdown-type-scale--h-3-font-weight) * .8) !important;
+    letter-spacing: calc(var(--gem-sys-typography-markdown-type-scale--h-3-font-tracking) * .8) !important;
+    line-height: calc(var(--gem-sys-typography-markdown-type-scale--h-3-line-height) * .8) !important;
+    --gds-type-scale-default-wdth: calc(var(--gem-sys-typography-markdown-type-scale--h-3-font-width) * .8) !important;
+    font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
+}
+
+.gds-body-m .gemini-h4,
+.gds-body-m .gemini-h5,
+.gds-body-m .gemini-h6 {
+  font-weight: calc(var(--gem-sys-typography-markdown-type-scale--h-4-font-weight) * .8) !important;
+  letter-spacing: calc(var(--gem-sys-typography-markdown-type-scale--h-4-font-tracking) * .8) !important;
+  line-height: calc(var(--gem-sys-typography-markdown-type-scale--h-4-line-height) * .8) !important;
+  --gds-type-scale-default-wdth: calc(var(--gem-sys-typography-markdown-type-scale--h-4-font-width) * .8) !important;
+  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
+}
+
+.gds-body-m .gemini-h3,
+.gds-body-m .gemini-h4,
+.gds-body-m .gemini-h5,
+.gds-body-m .gemini-h6 {
+  font-size: 14px !important;
+}
+
+.gds-body-m .gemini-prompt-hr {
+    margin-top: 16px;
+    margin-bottom: 20px;
+}
+
+/*
+.gemini-toc-content-wrapper p {
+  margin-block-start: 0.5em;
+  margin-block-end: 0.5em;
+}
+*/
+
+.gemini-toc-content-wrapper > :first-child { margin-top: 0; }
+.gemini-toc-content-wrapper > :last-child { margin-bottom: 0; }
+
+/* Inline Code in TOC - FIX: Force wrap */
+.gemini-toc-content-wrapper .gemini-prompt-inline-code {
+  white-space: pre-wrap !important;
+  /* word-break: break-word !important;
+  overflow-wrap: break-word !important; */
+}
+
+/* Ensure scrollbar is visible but unobtrusive in TOC code blocks */
+/*
+.gemini-toc-content-wrapper .code-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.gemini-toc-content-wrapper .code-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+*/

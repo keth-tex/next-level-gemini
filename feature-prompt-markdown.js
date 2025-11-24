@@ -2,10 +2,18 @@
  * feature-prompt-markdown.js
  * Parses Markdown syntax in user prompts and renders it as HTML.
  * Handles: Headers, Lists, Bold/Italic, Links, Horizontal Rules, Inline Code AND Code Blocks.
- * Supports both modern ('highlightElement') and legacy ('highlightBlock') Highlight.js APIs.
+ * Implements "Hard Line Breaks". Every line in the source becomes its own paragraph <p>.
  */
 
 const MARKDOWN_PROCESSED_ATTR = 'data-gemini-markdown-processed';
+// This constant was missing in the previous version, causing the crash
+const RAW_MARKDOWN_ATTR = 'data-gemini-raw-markdown';
+
+// EXPORT GLOBALLY (Must run before TOC script)
+window.GeminiMarkdown = {
+    parse: parseMarkdownToNodes,
+    parseInline: parseInline
+};
 
 function renderMarkdownInPrompts() {
   const queryContainers = document.querySelectorAll(`.query-text:not([${MARKDOWN_PROCESSED_ATTR}])`);
@@ -21,14 +29,18 @@ function renderMarkdownInPrompts() {
     }
     if (lines.length === 0) return;
 
-    // Use innerText to get rendered text (strips HTML source indentation).
-    // Join and Split normalizes soft-breaks (<br>) inside paragraphs.
-    const rawLines = lines.map(line => line.innerText.trimEnd()).join('\n').split('\n');
+    // Join with SINGLE '\n'. 
+    // Using '\n\n' previously broke Lists and Code Blocks by inserting gaps.
+    const rawText = lines.map(line => line.innerText.trimEnd()).join('\n');
     
-    // Parse Markdown und erstelle neue DOM-Knoten
+    // Save for TOC
+    container.setAttribute(RAW_MARKDOWN_ATTR, rawText);
+
+    // 2. PARSING
+    const rawLines = rawText.split('\n');
     const newNodes = parseMarkdownToNodes(rawLines);
 
-    // Leere den Container und füge die neue Struktur ein
+    // 3. RENDERING
     container.innerHTML = '';
     newNodes.forEach(node => container.appendChild(node));
   });
@@ -36,13 +48,18 @@ function renderMarkdownInPrompts() {
 
 function parseMarkdownToNodes(lines) {
   const nodes = [];
+  
+  // Buffers
   let listStack = []; 
   let listType = null;
+  // Note: paragraphBuffer removed to support hard line breaks
   
-  // State for Code Blocks
+  // Code Block State
   let inCodeBlock = false;
   let codeBlockLang = '';
   let codeBlockContent = [];
+
+  // --- FLUSH FUNCTIONS ---
 
   const flushList = () => {
     if (listStack.length === 0) return;
@@ -130,18 +147,21 @@ function parseMarkdownToNodes(lines) {
       codeBlockLang = '';
   };
 
+  // --- MAIN LOOP ---
+
   lines.forEach((line, index) => {
-    // Check for code block start/end
-    // Note: innerText might leave trailing \r, so trimRight is safer for the check
+    // FIX: Trim only end to preserve indentation for code blocks if needed, 
+    // but for detection we need trimmed start.
+    const trimmed = line.trim();
+
+    // 1. Code Blocks
     if (line.trimEnd().startsWith('```')) {
         if (inCodeBlock) {
-            // End of block
             inCodeBlock = false;
             flushCodeBlock();
             return;
         } else {
-            // Start of block
-            flushList(); // Close any open list first
+            flushList(); 
             inCodeBlock = true;
             codeBlockLang = line.trimEnd().substring(3).trim();
             return;
@@ -154,29 +174,26 @@ function parseMarkdownToNodes(lines) {
         return;
     }
 
-    // NORMAL MARKDOWN LOGIC
-    const trimmed = line.trim();
-
-    // 1. Horizontale Linie (--- oder ***)
+    // 2. Horizontal Rule (Explicit only)
     if (trimmed.match(/^(\*{3,}|-{3,})$/)) {
-      flushList();
-      const hr = document.createElement('hr');
-      hr.className = 'gemini-prompt-hr';
-      nodes.push(hr);
-      return;
+        flushList();
+        const hr = document.createElement('hr');
+        hr.className = 'gemini-prompt-hr';
+        nodes.push(hr);
+        return;
     }
 
-    // 2. Überschriften (# bis ######)
+    // 3. Headers (#)
     const headerMatch = trimmed.match(/^(#{1,6})\s+(.*)/);
     if (headerMatch) {
-      flushList();
-      const level = headerMatch[1].length;
-      const text = headerMatch[2];
-      const hTag = document.createElement('h' + level);
-      hTag.className = `gemini-prompt-header gemini-h${level}`;
-      hTag.innerHTML = parseInline(text);
-      nodes.push(hTag);
-      return;
+        flushList();
+        const level = headerMatch[1].length;
+        const text = headerMatch[2];
+        const hTag = document.createElement('h' + level);
+        hTag.className = `gemini-prompt-header gemini-h${level}`;
+        hTag.innerHTML = parseInline(text);
+        nodes.push(hTag);
+        return;
     }
 
     // 3. Listen
@@ -186,6 +203,7 @@ function parseMarkdownToNodes(lines) {
     const olMatch = line.match(/^\s*\d+\.\s+(.*)/);
 
     if (ulMatch || olMatch) {
+      
       const currentType = ulMatch ? 'ul' : 'ol';
       const content = ulMatch ? ulMatch[1] : olMatch[1];
 
@@ -199,29 +217,19 @@ function parseMarkdownToNodes(lines) {
       return;
     }
 
-    // 4. Paragraph OR Empty Line
-    flushList();
+    // 5. Text Lines & Empty Lines
+    flushList(); // Close any open list
     
-    // Use trimmed check for empty lines to insert HR
-    if (trimmed.length === 0) {
-        // Replace empty line with Horizontal Rule
-        const hr = document.createElement('hr');
-        hr.className = 'gemini-prompt-hr';
-        nodes.push(hr);
-    } else {
-        const p = document.createElement('p');
-        p.className = 'query-text-line';
-        p.innerHTML = parseInline(line);
-        nodes.push(p);
-    }
+    const p = document.createElement('p');
+    p.className = 'query-text-line';
+
+    p.innerHTML = parseInline(line);
+    nodes.push(p);
   });
 
-  // Am Ende noch offene Listen schließen
+  // Cleanup
   flushList();
-  if (inCodeBlock) {
-      // Auto-close code block if user forgot closing backticks
-      flushCodeBlock();
-  }
+  if (inCodeBlock) flushCodeBlock();
   
   return nodes;
 }

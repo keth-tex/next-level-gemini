@@ -1,7 +1,7 @@
 /**
  * feature-toc.js
  * Implements a Table of Contents (TOC) with Centered Auto-Scroll-Spy.
- * Includes "Smart Update" to prevent flickering on irrelevant mutations.
+ * Reads raw markdown from dataset to prevent formatting loss.
  */
 
 // Global State
@@ -230,63 +230,27 @@ function updateTOCState() {
     }
 }
 
-// === HELPER FUNCTIONS FOR TEXT HANDLING ===
-
-/**
- * Extrahiert den Text aus einem Prompt-Element.
- * Falls Inline-Code-Elemente vorhanden sind (durch feature-inline-code.js),
- * werden diese zurück in Backticks gewandelt, damit der Text konsistent ist.
- */
-function reconstructRawPrompt(element) {
-    const clone = element.cloneNode(true);
-    
-    // Stelle Backticks wieder her, falls sie bereits gerendert wurden
-    const codeElements = clone.querySelectorAll('.gemini-prompt-inline-code');
-    codeElements.forEach(el => {
-        el.replaceWith('`' + el.textContent + '`');
-    });
-    
-    return clone.innerText.trim().replace(/\n+/g, '\n');
-}
-
-/**
- * Rendert Text mit Backticks als HTML mit <code> Elementen in einen Container.
- */
-function renderTOCItemText(text, container) {
-    const parts = text.split(/(`[^`]+`)/g);
-
-    parts.forEach(part => {
-        if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-            // Code-Segment
-            const codeEl = document.createElement('code');
-            codeEl.className = 'gemini-prompt-inline-code';
-            codeEl.textContent = part.slice(1, -1); // Backticks entfernen
-            container.appendChild(codeEl);
-        } else {
-            // Normaler Text
-            container.appendChild(document.createTextNode(part));
-        }
-    });
-}
-
-// === TOC UPDATE & SCROLL SPY ===
-
 function updateTOC() {
   const tocList = document.querySelector(`#${TOC_CONTAINER_ID} .gemini-toc-list`);
   if (!tocList) return;
 
-  const blocks = document.querySelectorAll(TOC_CONVERSATION_BLOCK_SELECTOR);
+  // Select blocks, including pending ones (to filter them)
+  const blocks = document.querySelectorAll(`${TOC_CONVERSATION_BLOCK_SELECTOR}, pending-request`);
   
   // 1a. Gather current data using the robust text reconstructor
   const currentData = [];
   blocks.forEach((block, index) => {
+      // FIX: Skip pending requests
+      if (block.tagName.toLowerCase() === 'pending-request') return;
+
       const promptEl = block.querySelector(TOC_PROMPT_SELECTOR);
       if (promptEl) {
           // Ensure ID is present for stability
           if (!block.id) block.id = `gemini-conversation-block-${index}`;
           
-          // NUTZE NEUE FUNKTION ZUR TEXT-EXTRAKTION
-          const rawText = reconstructRawPrompt(promptEl);
+          // FIX: Get RAW Markdown if available (from feature-prompt-markdown.js)
+          // fallback to innerText only if attribute missing.
+          const rawText = promptEl.getAttribute('data-gemini-raw-markdown') || promptEl.innerText.trim();
           
           currentData.push({
               id: block.id,
@@ -302,22 +266,6 @@ function updateTOC() {
 
   if (isSame) {
       for (let i = 0; i < currentData.length; i++) {
-          // Hier müssen wir aufpassen: Der Text im DOM könnte nun HTML enthalten.
-          // Ein einfacher Text-Vergleich reicht oft, da .textContent auch den Inhalt von <code> liefert.
-          // Wir rekonstruieren den erwarteten Plain-Text für den Vergleich.
-          
-          const existingTextEl = existingItems[i].querySelector('.mdc-list-item__primary-text');
-          // Wir nutzen reconstructRawPrompt auch hier nicht, da wir keinen DOM-Zugriff auf die Ursprungsstruktur im TOC haben.
-          // Aber wir können prüfen, ob der reine Textinhalt gleich ist.
-          const existingTextContent = existingTextEl ? existingTextEl.textContent : '';
-          
-          // Um Fehlalarme durch Backticks im RawText vs. keine Backticks im gerenderten TOC zu vermeiden:
-          // RawText hat Backticks (`code`). ExistingTextContent hat "code" (ohne Backticks, da sie im HTML versteckt sind).
-          // Das ist schwierig exakt zu vergleichen ohne Re-Render.
-          // Strategie: Wir vergleichen einfach den Roh-String, wenn wir ihn als Attribut speichern würden.
-          // Oder wir akzeptieren einfach, dass wir neu rendern, wenn es Zweifel gibt.
-          // Simpler Hack für Performance: Wir speichern den raw text als data-attribute.
-          
           const storedRawText = existingItems[i].dataset.rawText;
           if (storedRawText !== currentData[i].text) {
               isSame = false;
@@ -328,8 +276,6 @@ function updateTOC() {
 
   if (isSame) return;
 
-  // --- STEP 2: REBUILD ---
-  
   if (scrollSpyObserver) {
       scrollSpyObserver.disconnect();
       scrollSpyObserver = null;
@@ -365,12 +311,22 @@ function updateTOC() {
     const unscopedSpan = document.createElement('span');
     unscopedSpan.className = 'mat-mdc-list-item-unscoped-content mdc-list-item__primary-text';
     
-    // NUTZE NEUE FUNKTION ZUM RENDERN
-    renderTOCItemText(item.text, textSpan = document.createElement('span'));
-    textSpan.className = 'gds-body-m'; // Klasse auf den Container anwenden
+    // FIX 2: Use the global Markdown parser to render full HTML structure
+    if (window.GeminiMarkdown && typeof window.GeminiMarkdown.parse === 'function') {
+        const rawLines = item.text.split('\n');
+        const nodes = window.GeminiMarkdown.parse(rawLines);
+        
+        // Wrap in a specific container for TOC styling
+        const tocContentWrapper = document.createElement('div');
+        tocContentWrapper.className = 'gds-body-m gemini-toc-content-wrapper';
+        
+        nodes.forEach(node => tocContentWrapper.appendChild(node));
+        unscopedSpan.appendChild(tocContentWrapper);
+    } else {
+        // Fallback if parser not ready
+        unscopedSpan.textContent = item.text;
+    }
     
-    // Da renderTOCItemText in 'textSpan' appendet, fügen wir diesen hinzu
-    unscopedSpan.appendChild(textSpan);
     contentSpan.appendChild(unscopedSpan);
     
     const focusIndicator = document.createElement('div');
