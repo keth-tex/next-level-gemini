@@ -48,6 +48,7 @@ body:has(.sidenav-with-history-container.collapsed) {
   --gemini-switcher-offset: 0px;
   --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
 }
+
 body.gemini-toc-closed {
   --gemini-toc-effective-width: 0px;
 }
@@ -175,6 +176,7 @@ body.gemini-toc-closed {
   transition: transform 0.3s ease !important;
   transform-origin: center !important;
 }
+
 .folder-header.is-open .folder-toggle-icon {
   transform: rotate(90deg) !important;
 }
@@ -194,7 +196,7 @@ body.gemini-toc-closed {
 .gemini-toc-item .mdc-list-item__primary-text {
   white-space: pre-wrap !important;
   overflow: visible !important;
-  line-height: 1.4 !important;
+  /* line-height: 1.4 !important; */
 }
 
 /* TOC Active State */
@@ -225,14 +227,19 @@ body.gemini-toc-closed {
 
 /* Native Element Tweaks */
 .user-query-bubble-with-background {
-  padding: 24px 30px 23px 34px !important;
+  /* padding: 24px 30px 23px 34px !important; */
+  padding: 24px 32px !important;
 }
+
 input-area-v2 { border-radius: 24px !important; }
+
 .text-input-field { padding: 18px 24px !important; }
+
 .explore-gems-container button {
   width: calc(100% - 14px) !important;
   margin-right: 2px !important;
 }
+
 location-footer { max-width: 428px !important; }
 
 /* Global Border Radius Consistency */
@@ -289,9 +296,11 @@ location-footer { max-width: 428px !important; }
   user-select: none !important;
   cursor: col-resize !important;
 }
+
 .gemini-resizing iframe, .gemini-resizing button, .gemini-resizing a {
   pointer-events: none !important;
 }
+
 mat-drawer.mat-drawer-opened { transition: none !important; }
 
 
@@ -387,6 +396,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 
 /* 7.2 Collapsed Button Fixes */
 .side-nav-action-collapsed-button { display: flex !important; margin-left: 18px !important; }
+
 .side-nav-action-collapsed-button .xap-count-badge-container,
 .side-nav-action-collapsed-button .icon-container,
 .icon-container {
@@ -416,6 +426,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
 .conversation-items-container.chat-item-rolled-up > * {
   visibility: hidden !important; opacity: 0 !important; height: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important;
 }
@@ -471,13 +482,16 @@ top-bar-actions {
   background: var(--gemini-bg-actions);
   border-radius: 4px; z-index: var(--gemini-z-actions);
 }
+
 .folder-header:hover .folder-actions { display: flex; }
 
 .folder-actions .action-btn {
   background: none; border: none; cursor: pointer; color: #bdc1c6;
   padding: 4px; margin: 0 2px; border-radius: 50%;
 }
+
 .folder-actions .action-btn:hover { background-color: rgba(255, 255, 255, .1); }
+
 .folder-actions .action-btn:disabled { color: var(--gemini-text-disabled); cursor: not-allowed; }
 
 /* Inline Edit Input */
@@ -491,6 +505,7 @@ top-bar-actions {
 
 /* Export Button Tooltip */
 #gemini-tex-export-button-wrapper { position: relative; }
+
 .gemini-tex-tooltip {
   word-break: normal; overflow-wrap: anywhere;
   padding: 4px 8px; min-width: 40px; max-width: 200px;
@@ -507,6 +522,7 @@ top-bar-actions {
   transition: opacity 150ms cubic-bezier(0, 0, 0.2, 1), transform 150ms cubic-bezier(0, 0, 0.2, 1), visibility 150ms cubic-bezier(0, 0, 0.2, 1);
   pointer-events: none; white-space: nowrap;
 }
+
 #gemini-tex-export-button-wrapper:hover .gemini-tex-tooltip {
   opacity: 1; visibility: visible; transform: translateX(-50%) scale(1);
 }
@@ -514,20 +530,24 @@ top-bar-actions {
 /* Custom Scrollbar */
 @media (pointer: fine) {
   ::-webkit-scrollbar, ::-webkit-scrollbar-corner { height: 24px !important; width: 24px !important; }
+
   ::-webkit-scrollbar-thumb {
     background: content-box var(--gem-sys-color--surface-container-highest) !important;
     border: 2px solid transparent; border-radius: var(--gemini-radius) !important;
     min-height: 48px; min-width: 48px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background: content-box var(--gemini-scrollbar-hover) !important; /* Oder eine andere, etwas hellere/dunklere Farbe */
     border: 2px solid transparent; 
   }
+
   ::-webkit-scrollbar-thumb:active {
     background: content-box var(--gemini-scrollbar-active) !important; 
     border: 2px solid transparent;
   }
 }
+
 @supports not (selector(::-webkit-scrollbar)) {
   * { scrollbar-width: auto !important; scrollbar-color: var(--gem-sys-color--surface-container-highest) transparent !important; }
 }
@@ -551,8 +571,9 @@ top-bar-actions {
   --gds-type-scale-default-wdth: var(--gem-sys-typography-type-scale--body-m-font-width);
   font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond);
   font-family: Google Sans Mono, monospace;
-  color: var(--gem-sys-color--on-surface-variant);
-  background-color: var(--gem-sys-color--surface-container-high);
+  color: var(--gem-sys-color--on-surface);
+  /* background-color: var(--gem-sys-color--surface-container-highest); */
+  background-color: rgba(255, 255, 255, .1);
   border-radius: 6px;
   padding: 1px 6px;
   /* font-family: 'Roboto Mono', monospace; /* Oder eine passende Monospace Font */
@@ -591,6 +612,25 @@ ul.gemini-prompt-list {
   padding-inline-start: var(--gem-sys-spacing--xs) !important;
 }
 
+.gemini-toc-item .gemini-prompt-list {
+  margin-top: calc(var(--gem-sys-spacing--s) * .8) !important;
+  margin-bottom: calc(var(--gem-sys-spacing--l) * .8) !important;
+}
+
+.gemini-toc-item ol.gemini-prompt-list {
+  padding-inline-start: calc(1.75rem * .8) !important;
+}
+
+.gemini-toc-item ul.gemini-prompt-list {
+  padding-inline-start: calc(1.6875rem * .8) !important;
+}
+
+.gemini-toc-item .gemini-prompt-list > li,
+.gemini-toc-item .gemini-prompt-list > li > p {
+  margin: calc(var(--gem-sys-spacing--s) * .8) 0 !important;
+  padding-inline-start: calc(var(--gem-sys-spacing--xs) * .8) !important;
+}
+
 .gemini-prompt-list > li > ::marker {
   overflow-wrap: break-word !important;
 }
@@ -600,6 +640,7 @@ ul.gemini-prompt-list {
   margin-top: 0 !important;
   margin-block-start: 0 !important;
 }
+
 .query-text > :last-child {
   margin-bottom: 0 !important;
   margin-block-end: 0 !important;
@@ -717,6 +758,10 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   overflow: hidden;
   border-radius: 8px !important;
   /* border: 1px solid rgba(255, 255, 255, 0.1); */
+}
+
+.query-text:has(+ button) .code-block {
+    width: 412px !important;
 }
 
 /* Structural Styles (Scoped to .query-text) */
@@ -941,8 +986,11 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 /* Fett / Kursiv */
 .query-text .hljs-strong { font-weight: bold; }
+
 .gemini-toc-item .hljs-strong { font-weight: bold; }
+
 .query-text .hljs-emphasis { font-style: italic; }
+
 .gemini-toc-item .hljs-emphasis { font-style: italic; }
 
 .query-text .hljs-link,
@@ -957,6 +1005,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   margin: 0 !important;
   overflow: hidden !important;
 }
+
 .gemini-toc-content-wrapper {
   /* font-size: 0.9em; /* Slightly smaller text in TOC */
   width: calc(var(--gemini-toc-effective-width) - 62px) !important;
@@ -1031,6 +1080,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 */
 
 .gemini-toc-content-wrapper > :first-child { margin-top: 0; }
+
 .gemini-toc-content-wrapper > :last-child { margin-bottom: 0; }
 
 /* Inline Code in TOC - FIX: Force wrap */
