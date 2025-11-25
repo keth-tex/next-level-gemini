@@ -68,7 +68,7 @@ window.GeminiResizer = class GeminiResizer {
 // === SIDEBAR SPECIFIC CONFIGURATION ===
 
 const MIN_SIDEBAR_WIDTH = 200;
-const MAX_SIDEBAR_WIDTH = 800;
+const MAX_SIDEBAR_WIDTH = 10000; // Limit removed (effectively)
 const SIDEBAR_PADDING_BUFFER = 95;
 const DEFAULT_SIDEBAR_WIDTH = 308; 
 const RESIZER_STANDARD_DIFF = 236; 

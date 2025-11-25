@@ -20,7 +20,7 @@ const TOC_PROMPT_SELECTOR = '.query-text';
 const SIDEBAR_ACTION_LIST_SELECTOR = 'mat-action-list.desktop-controls';
 
 const TOC_MIN_WIDTH = 200;
-const TOC_MAX_WIDTH = 800;
+const TOC_MAX_WIDTH = 10000; // Limit removed (effectively)
 const TOC_DEFAULT_WIDTH = 308; 
 
 // === RESIZER SETUP ===
@@ -123,7 +123,8 @@ function injectTOCContainer() {
     resizer.id = 'gemini-toc-resizer';
     resizer.className = 'gemini-resizer-handle';
     resizer.addEventListener('mousedown', startTOCDrag);
-    resizer.addEventListener('dblclick', syncTOCWidthToNav);
+    // New intelligent double-click handler
+    resizer.addEventListener('dblclick', handleTOCResizeDblClick);
     tocContainer.appendChild(resizer);
     
     // Inhalt in die Maske
@@ -394,11 +395,66 @@ function applySavedTOCWidth() {
 }
 
 function syncTOCWidthToNav(e) {
+  // This deprecated function is kept for reference but not used in dblclick anymore.
+  // See handleTOCResizeDblClick below.
   e.preventDefault();
   const nav = document.querySelector('bard-sidenav');
   if (nav) {
     const currentNavWidth = nav.getBoundingClientRect().width;
     document.documentElement.style.setProperty('--gemini-toc-width', currentNavWidth + 'px');
     chrome.storage.local.set({ 'geminiTOCWidth': currentNavWidth });
+  }
+}
+
+/**
+ * Intelligent double-click handler.
+ * 1. Checks if any element inside the TOC is a code block (which doesn't wrap).
+ * 2. If yes -> Expands to fit the widest element (measured by Range to get content width).
+ * 3. If no -> Syncs width with the Sidebar.
+ */
+function handleTOCResizeDblClick(e) {
+  e.preventDefault();
+  
+  const tocContainer = document.getElementById(TOC_CONTAINER_ID);
+  if (!tocContainer) return;
+
+  // Target code blocks specifically as they are the primary non-wrapping elements
+  const codeContainers = tocContainer.querySelectorAll('.gemini-toc-item .code-container');
+
+  if (codeContainers.length > 0) {
+      // Logic A: Expand/Shrink to fit content
+      let maxTextWidth = 0;
+      
+      // Measure actual text content width using Range (ignores container scrolling/clipping)
+      codeContainers.forEach(el => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const rect = range.getBoundingClientRect();
+          if (rect.width > maxTextWidth) {
+              maxTextWidth = rect.width;
+          }
+      });
+      
+      // Calculation:
+      // Content Text Width
+      // + Padding of code container (13px * 2 = 26px)
+      // + TOC Item Margins/Offsets calculated in CSS (approx 62px difference between TOC width and Code width)
+      let newWidth = maxTextWidth + 26 + 62;
+
+      if (newWidth < TOC_MIN_WIDTH) newWidth = TOC_MIN_WIDTH;
+      if (newWidth > TOC_MAX_WIDTH) newWidth = TOC_MAX_WIDTH;
+      
+      // Apply
+      document.documentElement.style.setProperty('--gemini-toc-width', newWidth + 'px');
+      chrome.storage.local.set({ 'geminiTOCWidth': newWidth });
+
+  } else {
+      // Logic B: Sync with Navigation Sidebar (Original Behavior) if only text (which wraps)
+      const nav = document.querySelector('bard-sidenav');
+      if (nav) {
+        const currentNavWidth = nav.getBoundingClientRect().width;
+        document.documentElement.style.setProperty('--gemini-toc-width', currentNavWidth + 'px');
+        chrome.storage.local.set({ 'geminiTOCWidth': currentNavWidth });
+      }
   }
 }
