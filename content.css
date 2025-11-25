@@ -185,8 +185,9 @@ body.gemini-toc-closed {
 .gemini-toc-item {
   height: auto !important;
   min-height: var(--gemini-item-height) !important;
+  width: 100% !important;
   margin: 0 0 18px 0 !important;
-  padding: 8px 12px !important;
+  padding: 12px 16px !important;
   box-sizing: border-box !important;
   align-items: flex-start !important; /* Multiline text alignment */
   white-space: normal !important;
@@ -309,6 +310,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
    ========================================================================== */
 
 #gemini-toc-container {
+  /* Use Fixed variable width for outer container (Animation & Switcher Sync) */
   width: var(--gemini-toc-width);
   min-width: 0px;
   flex-shrink: 0;
@@ -341,8 +343,10 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 
 /* Force children to keep width during collapse */
 .gemini-toc-mask > * {
-  width: var(--gemini-toc-width, 308px) !important;
-  min-width: var(--gemini-toc-width, 308px) !important;
+  /* 1. Be 100% of the container when open */
+  width: 100% !important;
+  /* 2. BUT stay at least the set width when the container shrinks during animation */
+  min-width: var(--gemini-toc-width, 308px) !important; 
   box-sizing: border-box !important;
 }
 
@@ -364,6 +368,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
   overflow-x: hidden;
   flex-grow: 1;
   display: block;
+  box-sizing: border-box !important; /* Essential so padding includes scrollbar space */
 }
 
 
@@ -388,11 +393,11 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
   pointer-events: none !important;
 }
 
-/* Hide TOC Button Text when collapsed */
-.sidenav-with-history-container.collapsed .new-folder-button .mdc-list-item__content
+/* Hide TOC Button Text when collapsed
+.sidenav-with-history-container.collapsed .new-folder-button .mdc-list-item__content,
 .sidenav-with-history-container.collapsed .gemini-toc-sidebar-btn .mdc-list-item__content {
   display: none !important;
-}
+} */
 
 /* 7.2 Collapsed Button Fixes */
 .side-nav-action-collapsed-button { display: flex !important; margin-left: 18px !important; }
@@ -766,7 +771,8 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 /* Structural Styles (Scoped to .query-text) */
 .gemini-toc-item .code-block {
-  width: calc(var(--gemini-toc-effective-width) - 62px) !important;
+  /* Use --gemini-toc-width to prevent shrinking during close animation */
+  width: calc(var(--gemini-toc-width) - 70px) !important;
   /* background-color: var(--gemini-bg-surface); */
   margin-top: 13px;
   margin-bottom: 13px;
@@ -1008,7 +1014,8 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 .gemini-toc-content-wrapper {
   /* font-size: 0.9em; /* Slightly smaller text in TOC */
-  width: calc(var(--gemini-toc-effective-width) - 62px) !important;
+  /* Use --gemini-toc-width to prevent shrinking during close animation */
+  width: calc(var(--gemini-toc-width) - 70px) !important;
   overflow: hidden !important;
   display: block !important;
   /* white-space: pre !important; */

@@ -439,7 +439,7 @@ function handleTOCResizeDblClick(e) {
       // Content Text Width
       // + Padding of code container (13px * 2 = 26px)
       // + TOC Item Margins/Offsets calculated in CSS (approx 62px difference between TOC width and Code width)
-      let newWidth = maxTextWidth + 26 + 62;
+      let newWidth = maxTextWidth + 26 + 70;
 
       if (newWidth < TOC_MIN_WIDTH) newWidth = TOC_MIN_WIDTH;
       if (newWidth > TOC_MAX_WIDTH) newWidth = TOC_MAX_WIDTH;
