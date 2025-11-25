@@ -2,8 +2,8 @@
  * feature-prompt-markdown.js
  * Parses Markdown syntax in user prompts and renders it as HTML.
  * Handles: Headers, Lists, Bold/Italic, Links, Horizontal Rules, Inline Code AND Code Blocks.
- * Implements a robust masking system (placeholders) for Code, Links, and URLs
- * to prevent Markdown renderers (like italic/bold) from breaking HTML attributes or paths.
+ * Smart Pre-Processing order. Masks inline code BEFORE detecting multi-line blocks 
+ * to prevent false positives across multiple lines.
  */
 
 const MARKDOWN_PROCESSED_ATTR = 'data-gemini-markdown-processed';
@@ -30,18 +30,38 @@ function renderMarkdownInPrompts() {
     }
     if (lines.length === 0) return;
 
-    // Join with SINGLE '\n'. 
-    // Using '\n\n' previously broke Lists and Code Blocks by inserting gaps.
-    const rawText = lines.map(line => line.innerText.trimEnd()).join('\n');
+    // 1. Normalize Text
+    let rawText = lines.map(line => line.innerText.trimEnd()).join('\n');
+
+    // 2. PRE-PROCESS: LOGICAL ORDER FIX
+    // Step A: Mask standard inline code (single line) first.
+    // This prevents the multi-line regex from falsely matching the space BETWEEN 
+    // two inline code snippets on different lines.
+    const inlinePlaceholders = [];
+    rawText = rawText.replace(/(?<!`)`([^`\n]+)`(?!`)/g, (match) => {
+        inlinePlaceholders.push(match);
+        return `%%%PRE-INLINE-${inlinePlaceholders.length - 1}%%%`;
+    });
+
+    // Step B: Convert multi-line single-backtick blocks to triple-backtick blocks.
+    // Now safe to run, as single-line instances are hidden.
+    rawText = rawText.replace(/(?<!`)`([^`]*?\n[^`]*?)`(?!`)/g, (match, content) => {
+        return `\n\`\`\`\n${content}\n\`\`\`\n`;
+    });
+    
+    // Step C: Restore inline code
+    rawText = rawText.replace(/%%%PRE-INLINE-(\d+)%%%/g, (match, index) => {
+        return inlinePlaceholders[parseInt(index, 10)];
+    });
     
     // Save for TOC
     container.setAttribute(RAW_MARKDOWN_ATTR, rawText);
 
-    // 2. PARSING
+    // 3. Parse
     const rawLines = rawText.split('\n');
     const newNodes = parseMarkdownToNodes(rawLines);
 
-    // 3. RENDERING
+    // 4. Render
     container.innerHTML = '';
     newNodes.forEach(node => container.appendChild(node));
   });
@@ -53,7 +73,7 @@ function parseMarkdownToNodes(lines) {
   // Buffers
   let listStack = []; 
   let listType = null;
-  // Note: paragraphBuffer removed to support hard line breaks
+  // Note: No paragraphBuffer needed for Hard Line Breaks
   
   // Code Block State
   let inCodeBlock = false;
