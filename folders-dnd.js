@@ -37,19 +37,26 @@ function resetDnDState() {
 function handleDragStartChat(event) {
   const chatEl = event.currentTarget;
 
-  // Disable animations to prevent glitches
-  chatEl.classList.add('gemini-dnd-no-transition');
-  chatEl.querySelectorAll('*').forEach(child => {
-    child.classList.add('gemini-dnd-no-transition');
-  });
-
-  // Global Lock (prevents updates in feature-folders.js)
-  document.documentElement.classList.add('gemini-chat-is-dragging');
+  // Verhindert, dass übergeordnete Google-Listener das Event abfangen und abbrechen
+  event.stopPropagation();
 
   event.dataTransfer.setData("text/gemini-chat-id", chatEl.dataset.chatId);
   event.dataTransfer.effectAllowed = "move";
 
-  chatEl.classList.add('gemini-dragging');
+  // Verzögerung der DOM-Manipulationen via setTimeout (0ms), um das 
+  // synchrone Blockieren der nativen Browser-Drag-Engine zu vermeiden.
+  setTimeout(() => {
+    // Disable animations to prevent glitches
+    chatEl.classList.add('gemini-dnd-no-transition');
+    chatEl.querySelectorAll('*').forEach(child => {
+      child.classList.add('gemini-dnd-no-transition');
+    });
+
+    // Global Lock (prevents updates in feature-folders.js)
+    document.documentElement.classList.add('gemini-chat-is-dragging');
+
+    chatEl.classList.add('gemini-dragging');
+  }, 0);
   
   // Safety Net: Listen on global document in case element is removed
   chatEl.addEventListener('dragend', handleDragEndChat, { once: true });
