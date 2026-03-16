@@ -16,6 +16,29 @@ const mainObserverConfig = {
   attributes: false
 };
 
+// Wartet, bis Google alle Chats von selbst nachgeladen hat
+function waitForGoogleLazyLoad() {
+  return new Promise((resolve) => {
+    let emptyChecks = 0;
+    const maxEmptyChecks = 6; // Nach ~1,2 Sekunden ohne Spinner ist die Liste komplett
+
+    const checkInterval = setInterval(() => {
+       const spinner = document.querySelector('.loading-history-spinner-container, mat-progress-spinner');
+       
+       if (spinner) {
+           emptyChecks = 0; // Spinner ist aktiv
+       } else {
+           emptyChecks++; // Spinner nicht gefunden
+       }
+
+       if (emptyChecks >= maxEmptyChecks) {
+           clearInterval(checkInterval);
+           resolve();
+       }
+    }, 200);
+  });
+}
+
 function injectionLogic() {
   // NOTBREMSE: Wenn wir selbst gerade bauen, ignorieren!
   if (window.isGeminiModifyingDOM) return;
@@ -70,10 +93,10 @@ function injectionLogic() {
     if (conversationContainer) {
       if (!isObservingChats) {
         isObservingChats = true;
+        
         conversationContainer.style.display = 'flex';
         conversationContainer.style.flexDirection = 'column';
-        prepareFoldersAndStartSync();
-
+        
         const bardSidenav = document.querySelector('bard-sidenav');
         if (bardSidenav) {
           bardSidenav.addEventListener('dragenter', (e) => { if (e.dataTransfer.types.includes("text/gemini-chat-id")) e.preventDefault(); });
@@ -82,11 +105,32 @@ function injectionLogic() {
           });
           bardSidenav.addEventListener('drop', (e) => { if (e.dataTransfer.types.includes("text/gemini-chat-id")) e.preventDefault(); });
         }
-      }
 
-      if (!isInitialSortComplete) {
-        if (revealTimer) clearTimeout(revealTimer);
-        revealTimer = setTimeout(revealContainer, REVEAL_SETTLE_TIME);
+        // --- Robuster Zwei-Phasen-Ablauf ---
+        preloadAllChats().then(async () => {
+          try {
+              // Phase 1: Ordner initialisieren
+              await prepareFoldersAndStartSync();
+              
+              // Phase 2: FOUC aufheben und Liste anzeigen
+              const fouc = document.getElementById('gemini-folder-fouc-fix');
+              if (fouc) fouc.remove();
+              
+              conversationContainer.style.opacity = '1';
+              conversationContainer.style.pointerEvents = 'auto';
+              
+              if (typeof revealContainer === 'function') {
+                  revealContainer();
+              }
+          } catch (err) {
+              console.error("Gemini Exporter: Fehler beim Ordner-Aufbau:", err);
+              // Notfall-Aufdeckung, damit die Liste bei einem Fehler nicht blockiert bleibt
+              const fouc = document.getElementById('gemini-folder-fouc-fix');
+              if (fouc) fouc.remove();
+              conversationContainer.style.opacity = '1';
+              conversationContainer.style.pointerEvents = 'auto';
+          }
+        });
       }
     }
   } catch (e) {
