@@ -25,66 +25,56 @@ const chatObserverConfig = {
 // === INITIALIZATION AND CONTROL ===
 
 /**
- * Findet dynamisch den echten Scroll-Container anhand der CSS-Eigenschaften.
- */
-function getScrollParent(node) {
-  if (!node || node === document.body || node === document.documentElement) return null;
-  const style = window.getComputedStyle(node);
-  const overflowY = style.getPropertyValue('overflow-y');
-  const isScrollable = overflowY === 'auto' || overflowY === 'scroll';
-  
-  if (isScrollable && node.scrollHeight > node.clientHeight) {
-    return node;
-  }
-  return getScrollParent(node.parentNode);
-}
-
-/**
  * Asynchrones Pre-Loading aller Chats.
+ * Nutzt gezielt den infinite-scroller und optimierte Wartezeiten.
  */
 function preloadAllChats() {
   return new Promise((resolve) => {
     let emptyChecks = 0;
-    const maxEmptyChecks = 8; 
+    // Reduziert auf 3 Checks. Bei 200ms Intervall ergibt das nur noch 600ms Pause am Ende.
+    const maxEmptyChecks = 3; 
+    let lastHeight = 0;
 
-    // Notfall-Timeout: Verhindert, dass das Skript endlos blockiert
+    // Notfall-Timeout etwas kürzer, falls das Netzwerk hängt
     const emergencyResolve = setTimeout(() => {
       clearInterval(scrollInterval);
       resolve();
-    }, 12000);
+    }, 8000);
 
     const scrollInterval = setInterval(() => {
+      const scroller = document.querySelector('infinite-scroller');
       const spinner = document.querySelector('.loading-history-spinner-container, mat-progress-spinner');
       
-      if (spinner) {
-        emptyChecks = 0;
+      if (scroller) {
+        // Zwingt den Scroller ans Ende
+        scroller.scrollTop = scroller.scrollHeight;
         
-        // Direkter Viewport-Fokus
-        spinner.scrollIntoView({ behavior: 'auto', block: 'end' });
-        
-        // Dynamisches Scrollen des echten Containers
-        const scrollParent = getScrollParent(spinner);
-        if (scrollParent) {
-          scrollParent.scrollTop = scrollParent.scrollHeight;
+        // Prüfen, ob die Seite tatsächlich noch wächst
+        if (scroller.scrollHeight > lastHeight) {
+          lastHeight = scroller.scrollHeight;
+          emptyChecks = 0; // Es wurde gerade etwas geladen -> Reset
+        } else if (!spinner) {
+          // Keine Höhenänderung UND kein Spinner -> Wir sind dem Ende näher
+          emptyChecks++;
+        } else {
+          // Spinner ist da, aber Höhe hat sich noch nicht geändert (wartet auf Netzwerk)
+          emptyChecks = 0;
         }
       } else {
         emptyChecks++;
-        
-        // Fallback-Scrollen, falls der Spinner gerade im DOM re-rendert wird
-        const chats = document.querySelectorAll('.conversation-items-container > *');
-        if (chats.length > 0) {
-          const scrollParent = getScrollParent(chats[chats.length - 1]);
-          if (scrollParent) scrollParent.scrollTop = scrollParent.scrollHeight;
-        }
       }
 
+      // Abbruchbedingung erreicht
       if (emptyChecks >= maxEmptyChecks) {
         clearInterval(scrollInterval);
         clearTimeout(emergencyResolve);
         console.log("Gemini Exporter: Pre-Loading abgeschlossen.");
+        
+        // Scrollposition wieder zurücksetzen, bevor die Liste aufgedeckt wird
+        if (scroller) scroller.scrollTop = 0;
         resolve();
       }
-    }, 250);
+    }, 200); // Takt auf 200ms verkürzt für schnellere Reaktion
   });
 }
 

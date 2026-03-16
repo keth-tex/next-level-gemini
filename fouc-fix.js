@@ -6,10 +6,9 @@
   const style = document.createElement('style');
   style.id = 'gemini-folder-fouc-fix';
   style.textContent = `
-        /* * opacity: 0.001 ist unsichtbar für den Nutzer, gilt aber technisch 
-         * als gerendert und triggert IntersectionObserver-Events zuverlässig.
-         */
-        .conversations-container {
+        /* Der gesamte scrollbare Bereich inkl. Scrollbalken und Spinner 
+           wird unsichtbar, bleibt für das Framework aber aktiv. */
+        infinite-scroller {
             opacity: 0.001 !important;
             pointer-events: none !important;
         }
