@@ -26,11 +26,30 @@ const chatObserverConfig = {
 
 /**
  * Phase 1: Asynchrones, ereignisgesteuertes Pre-Loading aller Chats.
- * Nutzt einen MutationObserver in Kombination mit Inaktivitäts-Checks.
+ * Nutzt die synchronisierte Datenbank und die Ziel-ID als exakte Abbruchkriterien.
+ * Ein Notfall-Timeout dient als absolute Sicherung.
  */
-function preloadAllChats() {
+async function preloadAllChats() {
+  const structure = await getFolderStructure();
+  let expectedChatCount = 0;
+
+  if (Array.isArray(structure)) {
+    structure.forEach(folder => {
+      if (Array.isArray(folder.chatIds)) {
+        expectedChatCount += folder.chatIds.length;
+      }
+    });
+  }
+
+  // Die ID deines ältesten Chats für den sofortigen Abbruch (Targeting)
+  const TARGET_OLDEST_CHAT_ID = "c_5fe2ee1128772cab";
+
   return new Promise((resolve) => {
-    const scroller = document.querySelector('infinite-scroller');
+    // Zielgenauer Selektor, der das Haupt-Chatfenster ausschließt
+    const scroller = document.querySelector('.overflow-container infinite-scroller') || 
+                     document.querySelector('infinite-scroller:has(.loading-history-spinner-container)') ||
+                     document.querySelector('infinite-scroller:has(.conversation-items-container)') ||
+                     document.querySelector('bard-sidenav infinite-scroller');
     
     if (!scroller) {
       console.log("Gemini Exporter: infinite-scroller nicht gefunden.");
@@ -38,69 +57,123 @@ function preloadAllChats() {
       return;
     }
 
-    let idleTimeout;
-    const IDLE_TIME = 400; // 400ms warten pro Check
-    let unchangedChecks = 0;
-    const MAX_CHECKS = 3;  // Nach 3 Checks (1,2 Sekunden) ohne DOM-Änderung ist Schluss
+    // Overlay an der echten Seitenleiste anbringen
+    const progressOverlay = document.createElement('div');
+    progressOverlay.id = 'gemini-folder-progress-overlay';
+    progressOverlay.style.cssText = `
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--gemini-background-color, var(--sys-color-surface, #1e1f20));
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--gemini-text-color, var(--sys-color-on-surface, #e3e3e3));
+      font-family: Roboto, Arial, sans-serif;
+    `;
+    
+    const progressBarContainer = document.createElement('div');
+    progressBarContainer.style.cssText = `
+      width: 80%; max-width: 300px;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    `;
+    
+    const progressBar = document.createElement('div');
+    progressBar.style.cssText = `
+      width: 0%;
+      height: 100%;
+      background: #a8c7fa;
+      transition: width 0.1s linear;
+    `;
+    
+    const progressText = document.createElement('div');
+    progressText.style.fontSize = '14px';
+    progressText.innerText = `Lade Chats … (0 / ${expectedChatCount})`;
 
-    // Notfall-Timeout etwas großzügiger, falls das Netzwerk zwischendrin hängt
-    const emergencyResolve = setTimeout(() => {
-      observer.disconnect();
-      console.warn("Gemini Exporter: Pre-Loading Notfall-Timeout erreicht.");
-      scroller.scrollTop = 0;
-      resolve();
-    }, 12000);
-
-    // Diese Funktion wird in regelmäßigen Abständen aufgerufen, solange das DOM stillsteht
-    function attemptFinish() {
-      // Zur Sicherheit immer wieder den Scroller ans Ende zwingen
-      scroller.scrollTop = scroller.scrollHeight;
-      
-      const spinner = document.querySelector('.loading-history-spinner-container, mat-progress-spinner');
-      
-      // Prüfen, ob der Spinner im DOM ist UND physisch sichtbar ist
-      const isSpinnerVisible = spinner && (spinner.offsetWidth > 0 || spinner.offsetHeight > 0);
-      if (isSpinnerVisible) {
-         spinner.scrollIntoView({ behavior: 'auto', block: 'end' });
-      }
-
-      // Wir registrieren einen Zyklus ohne DOM-Änderung
-      unchangedChecks++;
-
-      if (unchangedChecks >= MAX_CHECKS) {
-         // Abbruchbedingung erreicht: 1,2 Sekunden lang hat sich trotz Scrollens nichts am DOM getan
-         clearTimeout(emergencyResolve);
-         observer.disconnect();
-         console.log("Gemini Exporter: Pre-Loading abgeschlossen (Ende der Liste erreicht).");
-         
-         scroller.scrollTop = 0; // Ansicht zurücksetzen
-         resolve();
-      } else {
-         // Wir haben die maximale Wartezeit noch nicht erreicht, also weiter prüfen
-         idleTimeout = setTimeout(attemptFinish, IDLE_TIME);
-      }
+    progressBarContainer.appendChild(progressBar);
+    progressOverlay.appendChild(progressBarContainer);
+    progressOverlay.appendChild(progressText);
+    
+    const sidenav = document.querySelector('bard-sidenav');
+    if (sidenav) {
+      sidenav.style.position = 'relative';
+      sidenav.appendChild(progressOverlay);
     }
 
-    // Der Observer lauscht auf jede Änderung innerhalb des scrollers
+    let isScrollingLocked = false; 
+
+    const emergencyResolve = setTimeout(() => {
+      finishPreloading("Notfall-Timeout erreicht");
+    }, 12000);
+
+    function finishPreloading(reason) {
+      clearTimeout(emergencyResolve);
+      if (observer) observer.disconnect();
+      if (progressOverlay) progressOverlay.remove();
+      
+      console.log(`Gemini Exporter: Pre-Loading abgeschlossen (${reason}).`);
+      scroller.scrollTop = 0; 
+      resolve();
+    }
+
+    function updateProgress() {
+      const currentChats = document.querySelectorAll('.conversation-items-container').length;
+      
+      if (expectedChatCount > 0) {
+        console.log(`expectedChatCount: ${expectedChatCount}`);
+        console.log(`currentChats: ${currentChats}`);
+        const percentage = Math.min(100, Math.round((currentChats / expectedChatCount) * 100));
+        progressBar.style.width = `${percentage}%`;
+        progressText.innerText = `Lade Chats … (${currentChats} / ${expectedChatCount})`;
+      } else {
+        progressText.innerText = `Lade Chats … (${currentChats})`;
+      }
+
+      // Abbruchbedingung 2: Gesamte Anzahl aus der Datenbank erreicht
+      if (expectedChatCount > 0 && currentChats >= expectedChatCount) {
+          finishPreloading("Erwartete Chat-Anzahl erreicht");
+          return true;
+      }
+
+      // Abbruchbedingung 1: Ziel-Chat über jslog gefunden
+      if (document.querySelector(`[jslog*="${TARGET_OLDEST_CHAT_ID}"]`)) {
+          finishPreloading(`Ziel-Chat gefunden`);
+          return true;
+      }
+
+      return false;
+    }
+
+    // Neue Hilfsfunktion für gedrosseltes Scrollen (Throttling)
+    function triggerNextScroll() {
+      if (isScrollingLocked) return;
+      isScrollingLocked = true;
+      
+      // Eine winzige Pause gibt Googles Backend Zeit zum Durchatmen 
+      // und verhindert Rate-Limiting-Fehler.
+      setTimeout(() => {
+        scroller.scrollTop = scroller.scrollHeight;
+        isScrollingLocked = false;
+      }, 80); 
+    }
+
     const observer = new MutationObserver(() => {
-      // 1. Es gab eine Änderung! Countdown sofort zurücksetzen
-      unchangedChecks = 0;
-      
-      // 2. Sofort wieder nach unten scrollen, um das nächste Nachladen zu triggern
-      scroller.scrollTop = scroller.scrollHeight;
-      
-      // 3. Den Idle-Timer neu starten
-      clearTimeout(idleTimeout);
-      idleTimeout = setTimeout(attemptFinish, IDLE_TIME);
+      // Prüft die Abbruchbedingungen
+      if (updateProgress()) return;
+      // Scrollt weiter, falls noch nicht fertig
+      triggerNextScroll();
     });
 
-    // Observer starten
     observer.observe(scroller, { childList: true, subtree: true });
 
-    // Initialen Auslöser feuern (erster Schubs)
-    scroller.scrollTop = scroller.scrollHeight;
-    scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
-    idleTimeout = setTimeout(attemptFinish, IDLE_TIME);
+    if (!updateProgress()) {
+      triggerNextScroll();
+    }
   });
 }
 
@@ -378,6 +451,7 @@ async function syncFullListOrder() {
 
   const orderCounters = new Map();
   let baseOrder = 0;
+  let dbNeedsUpdate = false; // Flag für notwendige Datenbankspeicherungen
 
   // --- FLICKER FIX ---
   // Separate folders to update button status
@@ -439,8 +513,21 @@ async function syncFullListOrder() {
       chatEl.addEventListener('drop', handleDropOnChat);
     }
 
-    const folderId = chatFolderMap.get(chatId) || defaultFolderId;
-    const folder = structure.find(f => f.id === folderId) || structure.find(f => f.isDefault);
+    let folderId = chatFolderMap.get(chatId);
+
+    // NEU: Zwangszuweisung von unbekannten Chats
+    // Wenn die ID weder im Map existiert noch anderweitig zugeordnet ist
+    if (!folderId) {
+      folderId = defaultFolderId;
+      if (defaultFolder) {
+        defaultFolder.chatIds.unshift(chatId);
+        chatFolderMap.set(chatId, defaultFolderId);
+        dbNeedsUpdate = true;
+        console.log(`Gemini Exporter: Unbekannter Chat ${chatId} zur Datenbank hinzugefügt.`);
+      }
+    }
+
+    const folder = structure.find(f => f.id === folderId) || defaultFolder;
 
     let order = orderCounters.get(folder.id);
     chatEl.style.order = order;
@@ -456,6 +543,11 @@ async function syncFullListOrder() {
 
     chatEl.dataset.folderId = folder.id;
   });
+
+  // Nur schreiben, wenn sich tatsächlich etwas geändert hat, um Storage-Limits zu schonen
+  if (dbNeedsUpdate) {
+    await chrome.storage.local.set({ 'folderStructure': structure });
+  }
 
   isRendering = false;
 }
@@ -541,3 +633,47 @@ async function moveChatToFolder(chatId, newFolderId) {
   await chrome.storage.local.set({ 'folderStructure': structure });
   await syncFullListOrder();
 }
+
+/**
+ * Entfernt die ID eines gelöschten Chats aus dem jeweiligen Ordner.
+ */
+async function removeDeletedChatFromDB(chatId) {
+  let structure = await getFolderStructure();
+  let dbChanged = false;
+
+  structure.forEach(folder => {
+      if (Array.isArray(folder.chatIds)) {
+          const index = folder.chatIds.indexOf(chatId);
+          if (index > -1) {
+              folder.chatIds.splice(index, 1);
+              dbChanged = true;
+          }
+      }
+  });
+
+  if (dbChanged) {
+      await chrome.storage.local.set({ 'folderStructure': structure });
+      console.log(`Gemini Exporter: Gelöschter Chat ${chatId} aus der Datenbank entfernt.`);
+  }
+}
+
+// === DELETION LISTENER ===
+// Lauscht auf Klicks auf den Bestätigungs-Button beim Löschen eines Chats
+document.addEventListener('click', async (event) => {
+  // Prüfen, ob der Klick auf oder in dem gesuchten Button stattfand
+  const confirmBtn = event.target.closest('button[data-test-id="confirm-button"]');
+  if (!confirmBtn) return;
+
+  const jslog = confirmBtn.getAttribute('jslog');
+  if (!jslog) return;
+
+  // Die Chat-ID aus dem jslog-String extrahieren
+  const match = jslog.match(/"(c_[a-f0-9]+)"/);
+  if (match && match[1]) {
+    const chatId = match[1];
+    console.log(`Gemini Exporter: Löschen von Chat ${chatId} bestätigt.`);
+    
+    // Den Chat aus unserer lokalen Ordner-Datenbank entfernen
+    await removeDeletedChatFromDB(chatId);
+  }
+});

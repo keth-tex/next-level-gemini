@@ -8,7 +8,8 @@
   style.textContent = `
         /* Der gesamte scrollbare Bereich inkl. Scrollbalken und Spinner 
            wird unsichtbar, bleibt für das Framework aber aktiv. */
-        infinite-scroller {
+        bard-sidenav infinite-scroller,
+        .overflow-container infinite-scroller {
             opacity: 0.001 !important;
             pointer-events: none !important;
         }
