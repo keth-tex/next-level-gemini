@@ -25,56 +25,82 @@ const chatObserverConfig = {
 // === INITIALIZATION AND CONTROL ===
 
 /**
- * Asynchrones Pre-Loading aller Chats.
- * Nutzt gezielt den infinite-scroller und optimierte Wartezeiten.
+ * Phase 1: Asynchrones, ereignisgesteuertes Pre-Loading aller Chats.
+ * Nutzt einen MutationObserver in Kombination mit Inaktivitäts-Checks.
  */
 function preloadAllChats() {
   return new Promise((resolve) => {
-    let emptyChecks = 0;
-    // Reduziert auf 3 Checks. Bei 200ms Intervall ergibt das nur noch 600ms Pause am Ende.
-    const maxEmptyChecks = 3; 
-    let lastHeight = 0;
-
-    // Notfall-Timeout etwas kürzer, falls das Netzwerk hängt
-    const emergencyResolve = setTimeout(() => {
-      clearInterval(scrollInterval);
+    const scroller = document.querySelector('infinite-scroller');
+    
+    if (!scroller) {
+      console.log("Gemini Exporter: infinite-scroller nicht gefunden.");
       resolve();
-    }, 8000);
+      return;
+    }
 
-    const scrollInterval = setInterval(() => {
-      const scroller = document.querySelector('infinite-scroller');
+    let idleTimeout;
+    const IDLE_TIME = 400; // 400ms warten pro Check
+    let unchangedChecks = 0;
+    const MAX_CHECKS = 3;  // Nach 3 Checks (1,2 Sekunden) ohne DOM-Änderung ist Schluss
+
+    // Notfall-Timeout etwas großzügiger, falls das Netzwerk zwischendrin hängt
+    const emergencyResolve = setTimeout(() => {
+      observer.disconnect();
+      console.warn("Gemini Exporter: Pre-Loading Notfall-Timeout erreicht.");
+      scroller.scrollTop = 0;
+      resolve();
+    }, 12000);
+
+    // Diese Funktion wird in regelmäßigen Abständen aufgerufen, solange das DOM stillsteht
+    function attemptFinish() {
+      // Zur Sicherheit immer wieder den Scroller ans Ende zwingen
+      scroller.scrollTop = scroller.scrollHeight;
+      
       const spinner = document.querySelector('.loading-history-spinner-container, mat-progress-spinner');
       
-      if (scroller) {
-        // Zwingt den Scroller ans Ende
-        scroller.scrollTop = scroller.scrollHeight;
-        
-        // Prüfen, ob die Seite tatsächlich noch wächst
-        if (scroller.scrollHeight > lastHeight) {
-          lastHeight = scroller.scrollHeight;
-          emptyChecks = 0; // Es wurde gerade etwas geladen -> Reset
-        } else if (!spinner) {
-          // Keine Höhenänderung UND kein Spinner -> Wir sind dem Ende näher
-          emptyChecks++;
-        } else {
-          // Spinner ist da, aber Höhe hat sich noch nicht geändert (wartet auf Netzwerk)
-          emptyChecks = 0;
-        }
-      } else {
-        emptyChecks++;
+      // Prüfen, ob der Spinner im DOM ist UND physisch sichtbar ist
+      const isSpinnerVisible = spinner && (spinner.offsetWidth > 0 || spinner.offsetHeight > 0);
+      if (isSpinnerVisible) {
+         spinner.scrollIntoView({ behavior: 'auto', block: 'end' });
       }
 
-      // Abbruchbedingung erreicht
-      if (emptyChecks >= maxEmptyChecks) {
-        clearInterval(scrollInterval);
-        clearTimeout(emergencyResolve);
-        console.log("Gemini Exporter: Pre-Loading abgeschlossen.");
-        
-        // Scrollposition wieder zurücksetzen, bevor die Liste aufgedeckt wird
-        if (scroller) scroller.scrollTop = 0;
-        resolve();
+      // Wir registrieren einen Zyklus ohne DOM-Änderung
+      unchangedChecks++;
+
+      if (unchangedChecks >= MAX_CHECKS) {
+         // Abbruchbedingung erreicht: 1,2 Sekunden lang hat sich trotz Scrollens nichts am DOM getan
+         clearTimeout(emergencyResolve);
+         observer.disconnect();
+         console.log("Gemini Exporter: Pre-Loading abgeschlossen (Ende der Liste erreicht).");
+         
+         scroller.scrollTop = 0; // Ansicht zurücksetzen
+         resolve();
+      } else {
+         // Wir haben die maximale Wartezeit noch nicht erreicht, also weiter prüfen
+         idleTimeout = setTimeout(attemptFinish, IDLE_TIME);
       }
-    }, 200); // Takt auf 200ms verkürzt für schnellere Reaktion
+    }
+
+    // Der Observer lauscht auf jede Änderung innerhalb des scrollers
+    const observer = new MutationObserver(() => {
+      // 1. Es gab eine Änderung! Countdown sofort zurücksetzen
+      unchangedChecks = 0;
+      
+      // 2. Sofort wieder nach unten scrollen, um das nächste Nachladen zu triggern
+      scroller.scrollTop = scroller.scrollHeight;
+      
+      // 3. Den Idle-Timer neu starten
+      clearTimeout(idleTimeout);
+      idleTimeout = setTimeout(attemptFinish, IDLE_TIME);
+    });
+
+    // Observer starten
+    observer.observe(scroller, { childList: true, subtree: true });
+
+    // Initialen Auslöser feuern (erster Schubs)
+    scroller.scrollTop = scroller.scrollHeight;
+    scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+    idleTimeout = setTimeout(attemptFinish, IDLE_TIME);
   });
 }
 

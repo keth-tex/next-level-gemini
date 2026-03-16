@@ -112,19 +112,32 @@ function injectionLogic() {
               // Phase 1: Ordner initialisieren
               await prepareFoldersAndStartSync();
               
-              // Phase 2: FOUC aufheben und Liste anzeigen
-              const fouc = document.getElementById('gemini-folder-fouc-fix');
-              if (fouc) fouc.remove();
-              
-              conversationContainer.style.opacity = '1';
-              conversationContainer.style.pointerEvents = 'auto';
-              
-              if (typeof revealContainer === 'function') {
-                  revealContainer();
+              // Sicherstellen, dass die Sortierung fertig ist
+              if (typeof syncFullListOrder === 'function') {
+                  await syncFullListOrder();
               }
+              
+              // Phase 2: Frame-genaues Aufdecken
+              // requestAnimationFrame zwingt den Browser, das DOM-Update erst komplett 
+              // durchzuführen und zu zeichnen (unsichtbar), bevor das CSS entfernt wird.
+              requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                      setTimeout(() => {
+                          const fouc = document.getElementById('gemini-folder-fouc-fix');
+                          if (fouc) fouc.remove();
+                          
+                          conversationContainer.style.opacity = '1';
+                          conversationContainer.style.pointerEvents = 'auto';
+                          
+                          if (typeof revealContainer === 'function') {
+                              revealContainer();
+                          }
+                      }, 50); // Zusätzlicher minimaler Puffer für den Repaint
+                  });
+              });
+
           } catch (err) {
               console.error("Gemini Exporter: Fehler beim Ordner-Aufbau:", err);
-              // Notfall-Aufdeckung, damit die Liste bei einem Fehler nicht blockiert bleibt
               const fouc = document.getElementById('gemini-folder-fouc-fix');
               if (fouc) fouc.remove();
               conversationContainer.style.opacity = '1';
