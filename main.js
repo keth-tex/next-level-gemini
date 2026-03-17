@@ -170,3 +170,44 @@ if (document.documentElement) {
 } else {
   console.error("Gemini Exporter: Could not find document.documentElement.");
 }
+
+// Unabhängiger Observer, der ausschließlich auf Google-Toast-Meldungen (Umbenennen, Pin) lauscht.
+const googleToastObserver = new MutationObserver((mutationsList) => {
+    for (const mutation of mutationsList) {
+        if (mutation.addedNodes.length > 0) {
+            mutation.addedNodes.forEach(node => {
+                // Nur vollwertige HTML-Elemente (nodeType 1) prüfen
+                if (node.nodeType === 1) {
+                    
+                    // Suchen nach dem spezifischen Angular Material Snack-Bar Container
+                    const snackbar = (node.matches && node.matches('mat-snack-bar-container')) 
+                                     ? node 
+                                     : (node.querySelector ? node.querySelector('mat-snack-bar-container') : null);
+
+                    if (snackbar && snackbar.textContent) {
+                        const text = snackbar.textContent.toLowerCase();
+                        
+                        // Nur reagieren, wenn die Snack-Bar die relevanten Stichworte enthält
+                        if (text.includes('umbenannt') || text.includes('renamed') || 
+                            text.includes('angepinnt') || text.includes('pinned') || 
+                            text.includes('losgelöst') || text.includes('unpinned')) {
+                            
+                            console.log("Gemini Exporter: Aktion in Snack-Bar erkannt:", text.trim());
+                            if (typeof triggerExternalUpdate === 'function') {
+                                triggerExternalUpdate();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+
+// Startet den Listener
+window.addEventListener('DOMContentLoaded', () => {
+    if (document.body) {
+        // characterData wird nicht mehr benötigt, childList reicht für hinzugefügte Container
+        googleToastObserver.observe(document.body, { childList: true, subtree: true });
+    }
+});

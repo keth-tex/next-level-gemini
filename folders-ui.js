@@ -203,7 +203,7 @@ function activateInlineEdit(nameSpan, folderId) {
       const folder = structure.find(f => f.id === folderId);
       if (folder) {
         folder.name = newName;
-        await chrome.storage.local.set({ 'folderStructure': structure });
+        await saveFolderStructure(structure);
         nameSpan.textContent = newName;
       }
     } else {

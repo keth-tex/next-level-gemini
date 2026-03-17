@@ -193,7 +193,7 @@ async function prepareFoldersAndStartSync() {
     folder.isOpen = false;
   });
 
-  await chrome.storage.local.set({ 'folderStructure': structure });
+  await saveFolderStructure(structure);
 
   // Render headers
   renderInitialFolders();
@@ -287,7 +287,7 @@ async function handleNewFolderClick() {
     structure.push(newFolder);
   }
 
-  await chrome.storage.local.set({ 'folderStructure': structure });
+  await saveFolderStructure(structure);
 
   // Manual render to avoid flicker
   const container = document.querySelector('.conversations-container');
@@ -316,7 +316,7 @@ async function toggleFolder(folderId) {
   if (!folder) return;
 
   folder.isOpen = !folder.isOpen;
-  await chrome.storage.local.set({ 'folderStructure': structure });
+  await saveFolderStructure(structure);
 
   const folderHeader = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
   if (folderHeader) {
@@ -404,7 +404,7 @@ async function revealContainer() {
       });
 
       if (changed) {
-        await chrome.storage.local.set({ 'folderStructure': structure });
+        await saveFolderStructure(structure);
       }
       originalFolderState.clear();
     }
@@ -513,6 +513,26 @@ async function syncFullListOrder() {
       chatEl.addEventListener('drop', handleDropOnChat);
     }
 
+    // NEU: Geister-Elemente animiert ausblenden und endgültig löschen
+    if (syncedDeletedChats.includes(chatId)) {
+        // Das Element sanft kollabieren lassen (simuliert den nativen Löschvorgang)
+        chatEl.style.transition = 'all 0.3s ease-out';
+        chatEl.style.minHeight = '0px';
+        chatEl.style.height = '0px';
+        chatEl.style.margin = '0px';
+        chatEl.style.padding = '0px';
+        chatEl.style.opacity = '0';
+        chatEl.style.overflow = 'hidden';
+        chatEl.style.border = 'none';
+        
+        // Nach der Animation den HTML-Knoten restlos aus dem DOM entfernen
+        setTimeout(() => {
+            chatEl.remove();
+        }, 300);
+        
+        return;
+    }
+
     let folderId = chatFolderMap.get(chatId);
 
     // NEU: Zwangszuweisung von unbekannten Chats
@@ -522,12 +542,21 @@ async function syncFullListOrder() {
       if (defaultFolder) {
         defaultFolder.chatIds.unshift(chatId);
         chatFolderMap.set(chatId, defaultFolderId);
+        if (typeof triggerExternalUpdate === 'function') {
+            triggerExternalUpdate();
+        }
         dbNeedsUpdate = true;
         console.log(`Gemini Exporter: Unbekannter Chat ${chatId} zur Datenbank hinzugefügt.`);
       }
     }
 
     const folder = structure.find(f => f.id === folderId) || defaultFolder;
+
+    if (!folder) {
+        console.warn(`Gemini Exporter: Ordner für Chat ${chatId} nicht gefunden. Überspringe Sortierung.`);
+        chatEl.style.order = '99999';
+        return;
+    }
 
     let order = orderCounters.get(folder.id);
     chatEl.style.order = order;
@@ -546,7 +575,7 @@ async function syncFullListOrder() {
 
   // Nur schreiben, wenn sich tatsächlich etwas geändert hat, um Storage-Limits zu schonen
   if (dbNeedsUpdate) {
-    await chrome.storage.local.set({ 'folderStructure': structure });
+    await saveFolderStructure(structure);
   }
 
   isRendering = false;
@@ -564,7 +593,7 @@ async function handleDeleteFolder(folderId) {
 
   defaultFolder.chatIds.unshift(...folder.chatIds);
   structure.splice(folderIndex, 1);
-  await chrome.storage.local.set({ 'folderStructure': structure });
+  await saveFolderStructure(structure);
 
   // --- FLICKER FIX ---
   // 1. Manually remove header
@@ -593,7 +622,7 @@ async function handleMoveFolder(folderId, direction) {
   }
 
   const newStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
-  await chrome.storage.local.set({ 'folderStructure': newStructure });
+  await saveFolderStructure(structure);
 
   // --- FLICKER FIX ---
   // 1. Sync *immediately*
@@ -630,7 +659,7 @@ async function moveChatToFolder(chatId, newFolderId) {
     newFolder.chatIds.unshift(chatId);
   }
 
-  await chrome.storage.local.set({ 'folderStructure': structure });
+  await saveFolderStructure(structure);
   await syncFullListOrder();
 }
 
@@ -652,7 +681,12 @@ async function removeDeletedChatFromDB(chatId) {
   });
 
   if (dbChanged) {
-      await chrome.storage.local.set({ 'folderStructure': structure });
+      syncedDeletedChats.push(chatId);
+      if (syncedDeletedChats.length > 50) {
+          syncedDeletedChats.shift();
+      }
+
+      await saveFolderStructure(structure);
       console.log(`Gemini Exporter: Gelöschter Chat ${chatId} aus der Datenbank entfernt.`);
   }
 }
