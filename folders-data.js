@@ -24,8 +24,11 @@ async function saveFolderStructure(structure) {
     const syncData = {};
     const folderMetadataList = [];
     const localFolderStates = {}; 
+    const activeFolderIds = new Set(); // NEU: Set für die IDs aller aktiven Ordner
 
     structure.forEach(folder => {
+        activeFolderIds.add(folder.id); // ID für den Abgleich merken
+
         folderMetadataList.push({
             id: folder.id,
             name: folder.name || folder.title || "Ordner",
@@ -51,14 +54,37 @@ async function saveFolderStructure(structure) {
         });
     });
 
-    // 3. WARTEN, bis die lokale Speicherung abgeschlossen ist
+    // NEU: 3. Karteileichen (verwaiste Ordner-Keys) aus dem Sync-Speicher entfernen
+    await new Promise((resolve) => {
+        chrome.storage.sync.get(null, (items) => {
+            const keysToRemove = [];
+            for (let key in items) {
+                if (key.startsWith('folder_')) {
+                    const folderId = key.replace('folder_', '');
+                    // Wenn die ID nicht im Set der aktiven Ordner ist, markiere sie zum Löschen
+                    if (!activeFolderIds.has(folderId)) {
+                        keysToRemove.push(key);
+                    }
+                }
+            }
+            
+            if (keysToRemove.length > 0) {
+                console.log(`Gemini Exporter: Entferne ${keysToRemove.length} verwaiste Ordner aus der Datenbank.`);
+                chrome.storage.sync.remove(keysToRemove, () => resolve());
+            } else {
+                resolve();
+            }
+        });
+    });
+
+    // 4. WARTEN, bis die lokale Speicherung abgeschlossen ist
     await new Promise((resolve) => {
         chrome.storage.local.set({ 'gemini_folder_states': localFolderStates }, () => {
             resolve();
         });
     });
     
-    // 4. ERST JETZT den Timer starten!
+    // 5. ERST JETZT den Timer starten!
     // Puffer auf 1000ms erhöht, um das Echo sicher abzufangen.
     localSaveTimeout = setTimeout(() => { 
         isLocalSaveInProgress = false; 
