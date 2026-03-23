@@ -1285,3 +1285,55 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   opacity: 0.65 !important;      /* Grau/Transparent */
   cursor: default !important;   /* Normaler Mauszeiger statt Verbotsschild */
 }
+
+/* --- EXPERIMENT: SHRINK-TO-FIT FOLDER BACKGROUND --- */
+
+/* 1. Hintergrund schrumpfen und Overflow für das äußere Menü erlauben */
+.folder-header {
+  width: fit-content !important;
+  overflow: visible !important; /* Wichtig, damit das Menü außerhalb nicht abgeschnitten wird */
+  padding-right: 20px !important; /* Etwas Luft nach dem Text */
+  
+  /* Verhindert, dass extrem lange Ordnernamen das Menü aus dem Bildschirm schieben */
+  max-width: calc(100% - 130px) !important; 
+}
+
+/* 2. Text darf sich nicht mehr künstlich ausdehnen (flex-grow: 0) */
+.folder-name {
+  flex-grow: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 3. Kontextmenü rechts anflanschen */
+.folder-actions {
+  position: absolute !important;
+  left: 100% !important; /* Startet exakt am rechten Rand des Ordners */
+  right: auto !important;
+  margin-left: 8px !important; /* Der gewünschte Abstand zum Ordner */
+  
+  /* Neues Design für das schwebende Menü */
+  background: var(--gemini-bg-surface) !important; 
+  padding: 2px 4px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important; 
+}
+
+/* 4. Beim Umbenennen braucht das Input-Feld nun eine feste Breite, 
+   da fit-content es sonst zu stark schrumpfen lassen würde */
+.folder-name-input {
+  width: 140px !important;
+  flex-grow: 0 !important;
+}
+
+/* 5. Die unsichtbare Hover-Brücke für die tote Zone */
+.folder-actions::before {
+  content: '';
+  position: absolute;
+  top: -5px; 
+  bottom: -5px;
+  left: -12px; /* Zieht die klickbare Zone über die 8px margin hinweg an den Ordner */
+  width: 12px;
+}
