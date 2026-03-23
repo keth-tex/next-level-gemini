@@ -53,13 +53,18 @@ function createGenericSidebarButton(id, iconName, label, extraClasses = '', onCl
 
   contentSpan.appendChild(unscopedSpan);
 
+  // --- NEU: Der Wrapper für das Pillen-Design ---
+  const pillInner = document.createElement('div');
+  pillInner.className = 'pill-btn-inner';
+  pillInner.appendChild(iconContainer);
+  pillInner.appendChild(contentSpan);
+
   // 6. Focus Indicator
   const focusIndicator = document.createElement('div');
   focusIndicator.className = 'mat-focus-indicator';
 
-  // Assemble Button
-  button.appendChild(iconContainer);
-  button.appendChild(contentSpan);
+  // Assemble Button (Icon und Text stecken jetzt im pillInner)
+  button.appendChild(pillInner);
   button.appendChild(focusIndicator);
 
   // Add Listener
@@ -82,7 +87,7 @@ function createFolderButton() {
   return createGenericSidebarButton(
     'new-folder-button',
     'folder',
-    'Neuer Ordner',
+    'Neuen Ordner erstellen', // <-- Text wurde hier geändert
     'new-folder-button',
     handleNewFolderClick
   );

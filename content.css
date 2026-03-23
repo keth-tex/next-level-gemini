@@ -1307,7 +1307,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   width: fit-content;
   max-width: 100%;
   border-radius: var(--gemini-radius);
-  padding-right: 20px; /* Luft rechts vom Text */
+  padding-right: 19px; /* Luft rechts vom Text */
   transition: background-color 0.1s ease-out;
   overflow: hidden;
 
@@ -1320,6 +1320,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 /* 3. Hintergrundfarbe & EXAKTER AUSGLEICH für Unterordner (dein padding: 11px ... 11px 0) */
 .folder-header.is-subfolder .folder-info {
+  padding-right: 18px; /* Luft rechts vom Text */
   margin-top: -11px;
   margin-bottom: -11px;
   padding-top: 11px;
@@ -1343,4 +1344,49 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   11. PILLEN-DESIGN FÜR SIDEBAR-BUTTONS (Ordner erstellen & TOC)
+   ========================================================================== */
+
+/* 1. Äußeren Hintergrund im Ruhezustand restlos entfernen */
+.new-folder-button,
+.gemini-toc-sidebar-btn {
+  background-color: transparent !important;
+}
+
+/* 2. Den inneren Inhalts-Block (die Pille) formen */
+.pill-btn-inner {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  height: 100%; /* Zieht die Pille auf die vollen 40px des Buttons */
+  border-radius: var(--gemini-radius);
+  background-color: var(--gemini-bg-item) !important;
+  padding-right: 17px; /* Optischer Abstand rechts vom Text */
+  transition: background-color 0.1s ease-out;
+}
+
+/* 3. HOVER-MECHANIK */
+.new-folder-button:hover .pill-btn-inner,
+.gemini-toc-sidebar-btn:hover .pill-btn-inner {
+  background-color: transparent !important;
+}
+
+/* ==========================================================================
+   12. DRAG & DROP FIX FÜR DAS PILLEN-DESIGN
+   ========================================================================== */
+
+/* 1. Äußeren Rahmen zwingend einfärben, wenn ein Element darüber schwebt 
+      (überschreibt das "transparent !important" aus dem Ruhezustand restlos) */
+.folder-header.gemini-drag-over,
+.folder-header.is-subfolder.gemini-drag-over {
+  background-color: var(--gemini-bg-dnd-chat) !important;
+}
+
+/* 2. Die innere Pille MUSS transparent werden, damit die DnD-Farbe vollflächig durchscheint */
+.folder-header.gemini-drag-over .folder-info {
+  background-color: transparent !important;
 }
