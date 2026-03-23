@@ -22,6 +22,14 @@ const chatObserverConfig = {
   characterData: false
 };
 
+// 20 Farben für ein perfektes 5x4 Raster
+const FOLDER_COLORS = [
+  '#000000', '#795548', '#FF5722', '#FF9800', '#FFC107', 
+  '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', 
+  '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', 
+  '#8BC34A', '#CDDC39', '#9E9E9E', '#607D8B', '#FFFFFF'  
+];
+
 // === INITIALIZATION AND CONTROL ===
 
 /**
@@ -272,12 +280,15 @@ function injectFolderButton() {
 async function handleNewFolderClick() {
   let structure = await getFolderStructure();
 
+  const randomColor = FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
+
   const newFolder = {
     id: `folder-${crypto.randomUUID()}`,
     name: "Neuer Ordner",
     chatIds: [],
     isOpen: true,
-    isDefault: false
+    isDefault: false,
+    color: randomColor // Weist dem neuen Ordner die Zufallsfarbe zu
   };
 
   const defaultIndex = structure.findIndex(f => f.isDefault);

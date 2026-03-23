@@ -172,7 +172,7 @@ body.gemini-toc-closed {
 /* Folder Arrow Animation */
 .folder-header .folder-toggle-icon {
   margin-left: 14px;
-  margin-right: 16px;
+  margin-right: 12px;
   transition: transform 0.3s ease !important;
   transform-origin: center !important;
 }
@@ -1107,3 +1107,122 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   background: rgba(255, 255, 255, 0.2);
 }
 */
+
+/* --- FOLDER ICON & COLOR PICKER --- */
+
+.folder-icon {
+  margin-right: 12px !important;
+  margin-left: 0px !important;
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  font-variation-settings: 'FILL' 1 !important; 
+  transition: color 0.2s ease;
+}
+
+/* Ergänze diese Eigenschaft in der bestehenden Klasse */
+.folder-color-picker-popup {
+  position: absolute;
+  top: 100%;
+  left: 36px;
+  background: var(--gemini-bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  width: max-content;
+  cursor: default; /* NEU: Verhindert das Vererben des Pointers vom Ordner-Header */
+}
+
+/* Container für die Standardfarben */
+.folder-color-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 20px); /* 5 Spalten */
+  gap: 8px; /* Gleichmäßiger Abstand */
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s;
+  box-sizing: border-box;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
+}
+
+/* Trennlinie */
+.color-picker-separator {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  width: 100%;
+  margin: 0;
+  border: none;
+}
+
+/* Eigene Farbe Bereich */
+.custom-color-section {
+  display: flex;
+  flex-direction: row; /* Elemente nebeneinander */
+  align-items: center; /* Vertikal zentrieren */
+  justify-content: space-evenly; /* Verteilt den Platz gleichmäßig auf Ränder und Lücke */
+}
+
+.custom-color-label {
+  font-size: 13px;
+  color: var(--gemini-text-primary);
+}
+
+/* Gradient-Ring */
+.custom-color-wrapper {
+  margin-left: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: conic-gradient(from 90deg, red, yellow, lime, aqua, blue, magenta, red);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Ersetze die bestehende Klasse durch diese Version */
+.custom-color-inner {
+  width: 16px;
+  height: 16px;
+  /* background-color wurde entfernt, da es nun dynamisch per JS gesetzt wird */
+  border-radius: 50%;
+  pointer-events: none; /* Leitet Klicks an das unsichtbare Input weiter */
+  border: 1px solid rgba(255, 255, 255, 0.15); /* NEU: Leichter Rahmen zur Abgrenzung */
+  box-sizing: border-box; /* NEU: Damit der Rahmen die Größe nicht verändert */
+}
+
+/* Unsichtbares Farb-Input, das den gesamten Ring überlagert */
+.custom-color-wrapper input[type="color"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0; /* Komplett unsichtbar */
+  cursor: pointer;
+}
+
+.folder-header.is-editing {
+  overflow: visible !important;
+  z-index: 100;
+}
