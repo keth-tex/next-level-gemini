@@ -95,7 +95,6 @@ function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
   header.className = isSubfolder ? 'folder-header is-subfolder' : 'folder-header';
   header.dataset.folderId = folder.id;
   
-  // Wichtig für das spätere Ausblenden beim Zuklappen des Hauptordners
   if (isSubfolder) {
       header.dataset.parentId = folder.parentId; 
   }
@@ -104,7 +103,6 @@ function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
   header.dataset.folderColor = effectiveColor;
   
   if (isSubfolder) {
-      // Zwingt den Browser, den farbigen Rand des Hauptordners anzuzeigen
       header.style.setProperty('border-left', `4px solid ${effectiveColor}`, 'important');
   }
 
@@ -122,6 +120,10 @@ function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
       <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font folder-icon" aria-hidden="true" style="${iconColorStyle}">folder</mat-icon>
       
       <span class="folder-name">${folder.name}</span>
+      
+      <button class="menu-toggle-btn" title="Optionen">
+        <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">more_vert</mat-icon>
+      </button>
       
       <span class="folder-actions">
         ${!folder.isDefault && !isSubfolder ? `
@@ -155,18 +157,38 @@ function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
     header.classList.add('is-open');
   }
 
+  // Klick auf den Header (Aufklappen/Zuklappen des Ordners)
   header.addEventListener('click', (e) => {
-    if (e.target.closest('.action-btn')) return;
+    // Ignoriere Klicks, wenn sie auf dem Menü oder den Buttons stattfinden
+    if (e.target.closest('.action-btn') || e.target.closest('.menu-toggle-btn') || e.target.closest('.folder-actions')) return;
     toggleFolder(folder.id);
   });
 
+  // NEU: Klick auf den Drei-Punkte-Button (Dropdown öffnen/schließen)
+  const toggleBtn = header.querySelector('.menu-toggle-btn');
+  if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); // Verhindert, dass sich der Ordner beim Klicken versehentlich mit öffnet
+          
+          // Schließe eventuell andere, noch offene Menüs in der Liste
+          document.querySelectorAll('.folder-header.menu-open').forEach(h => {
+              if (h !== header) h.classList.remove('menu-open');
+          });
+          
+          // Öffnet/Schließt das Menü des aktuellen Ordners
+          header.classList.toggle('menu-open');
+      });
+  }
+
+  // Klick auf eine Aktion im Dropdown-Menü
   header.querySelector('.folder-actions').addEventListener('click', (e) => {
     const button = e.target.closest('.action-btn');
-    
-    // NEU: Bricht ab, wenn kein Button getroffen wurde ODER der Button das Attribut "disabled" hat
     if (!button || button.disabled) return;
-    
+
     e.stopPropagation();
+
+    // Menü nach der Aktion sofort wieder schließen
+    header.classList.remove('menu-open');
 
     const action = button.dataset.action;
     switch (action) {
@@ -369,4 +391,18 @@ function activateInlineEdit(nameSpan, folderId) {
   };
 
   input.addEventListener('keydown', handleKey);
+}
+
+// --- NEU: Globaler Event-Listener zum Schließen des Dropdown-Menüs ---
+if (!window.hasFolderMenuListener) {
+    document.addEventListener('click', (e) => {
+        // Wenn der Klick weder auf einem Menü noch auf einem Drei-Punkte-Button stattfand...
+        if (!e.target.closest('.folder-actions') && !e.target.closest('.menu-toggle-btn')) {
+            // ...alle offenen Menüs schließen.
+            document.querySelectorAll('.folder-header.menu-open').forEach(h => {
+                h.classList.remove('menu-open');
+            });
+        }
+    });
+    window.hasFolderMenuListener = true;
 }

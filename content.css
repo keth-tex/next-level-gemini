@@ -1285,3 +1285,88 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   opacity: 0.65 !important;      /* Grau/Transparent */
   cursor: default !important;   /* Normaler Mauszeiger statt Verbotsschild */
 }
+
+/* --- NEUES DESIGN: ZENTRIERT, FIT-CONTENT & DROPDOWN-MENÜ --- */
+
+/* 1. Header zentriert sich in der Seitenleiste und schrumpft auf Inhaltsgröße */
+.folder-header {
+  width: fit-content !important;
+  margin: 4px auto !important; /* KORREKTUR: 4px Abstand oben/unten, auto zentriert links/rechts */
+  justify-content: center !important;
+  padding-left: 16px !important;
+  padding-right: 8px !important; 
+  overflow: visible !important;
+  position: relative !important;
+}
+
+/* 2. Text-Verhalten anpassen */
+.folder-name {
+  flex-grow: 0 !important;
+  margin-right: 4px !important;
+}
+
+/* 3. Abstände der Icons */
+.folder-header .folder-toggle-icon {
+  margin-left: 0 !important;
+  margin-right: 6px !important;
+}
+
+/* 4. Drei-Punkte-Button (Platz permanent reservieren, um Springen zu verhindern) */
+.menu-toggle-btn {
+  display: flex !important; /* Immer da, um Platz zu halten */
+  opacity: 0;               /* Aber unsichtbar */
+  pointer-events: none;     /* Und blockiert keine Klicks */
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gemini-text-variant);
+  padding: 4px;
+  border-radius: 50%;
+  margin-left: 0px;
+  height: 24px !important;  /* Feste Höhe verhindert Höhen-Zucken */
+  width: 24px !important;
+  transition: opacity 0.2s ease-out;
+}
+
+.menu-toggle-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Button einblenden beim Hovern ODER wenn das Menü offen ist */
+.folder-header:hover .menu-toggle-btn,
+.folder-header.menu-open .menu-toggle-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 5. Das Dropdown-Menü (Kontextmenü) */
+.folder-actions {
+  display: flex !important;
+  width: max-content !important; /* KORREKTUR: Menü ignoriert die Ordnerbreite und nimmt sich den Platz, den die Icons brauchen */
+  flex-wrap: nowrap !important;  /* KORREKTUR: Verhindert, dass Icons in eine zweite Zeile rutschen */
+  position: absolute !important;
+  top: 100% !important; 
+  left: 50% !important; 
+  transform: translateX(-50%) translateY(-10px) !important; 
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0.2s !important;
+  background: var(--gemini-bg-surface) !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  z-index: 1000 !important; 
+  margin: 0 !important; 
+}
+
+/* 6. Zustand: Menü ist geöffnet */
+.folder-header.menu-open .folder-actions {
+  transform: translateX(-50%) translateY(4px) !important; /* Fährt 4px nach unten aus */
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
