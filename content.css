@@ -1231,17 +1231,17 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 .folder-header.is-subfolder {
   /* background-color: rgba(0, 0, 0, 0.12); /* Etwas dunklerer Hintergrund */
-  background-color: #2a2a2a !important;
+  background-color: #2c2c2c !important;
   border-left: 4px solid var(--folder-accent, transparent); /* Farbige Linie links */
   padding: 11px 16px 11px 0;
   margin-top: 10px;
   margin-bottom: 6px;
   margin-left: 12px;
-  margin-right: 12px;
+  /* margin-right: 12px; */
 }
 
 .folder-header.is-subfolder:hover {
-    background-color: #1b1b1c !important;
+    background-color: #19191a !important;
 }
 
 /* Den linken Abstand des Pfeil-Icons anpassen, damit alles vertikal bündig bleibt */
@@ -1253,7 +1253,11 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 .folder-header.is-subfolder .folder-name {
   font-size: 15px !important;
   color: var(--gemini-text-variant) !important;
-  font-weight: 500 !important; 
+}
+
+/* Schriftgröße und -dicke des Eingabefeldes in Unterordnern angleichen */
+.folder-header.is-subfolder .folder-name-input {
+  font-size: 15px !important;
 }
 
 /* Das ausgefüllte Ordner-Symbol bei Unterordnern ausblenden */
@@ -1284,4 +1288,59 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 .action-btn:disabled mat-icon {
   opacity: 0.65 !important;      /* Grau/Transparent */
   cursor: default !important;   /* Normaler Mauszeiger statt Verbotsschild */
+}
+
+/* ==========================================================================
+   10. PILLEN-DESIGN (RUHEZUSTAND) FÜR ALLE ORDNER
+   ========================================================================== */
+
+/* 1. Äußeren Hintergrund im Ruhezustand restlos entfernen */
+.folder-header,
+.folder-header.is-subfolder {
+  background-color: transparent !important;
+}
+
+/* 2. Den inneren Inhalts-Block exakt auf die Höhe des Hover-Hintergrunds strecken */
+.folder-info {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--gemini-radius);
+  padding-right: 20px; /* Luft rechts vom Text */
+  transition: background-color 0.1s ease-out;
+  overflow: hidden;
+
+  /* EXAKTER AUSGLEICH für Hauptordner (dein padding: 12px ... 12px 0) */
+  margin-top: -12px;
+  margin-bottom: -12px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+/* 3. Hintergrundfarbe & EXAKTER AUSGLEICH für Unterordner (dein padding: 11px ... 11px 0) */
+.folder-header.is-subfolder .folder-info {
+  margin-top: -11px;
+  margin-bottom: -11px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  background-color: #2a2a2a !important;
+}
+
+/* Hintergrundfarbe für Hauptordner */
+.folder-header:not(.is-subfolder) .folder-info {
+  background-color: var(--gemini-bg-item) !important;
+}
+
+/* 4. HOVER-MECHANIK */
+.folder-header:hover .folder-info,
+.folder-header.is-editing .folder-info {
+  background-color: transparent !important;
+}
+
+/* 5. Text-Überlauf sicher in der Pille kapseln */
+.folder-info .folder-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -117,11 +117,11 @@ function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
   const iconColorStyle = effectiveColor ? `color: ${effectiveColor} !important;` : '';
 
   header.innerHTML = `
-      <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font mat-icon-no-color folder-toggle-icon" aria-hidden="true">chevron_right</mat-icon>
-      
-      <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font folder-icon" aria-hidden="true" style="${iconColorStyle}">folder</mat-icon>
-      
-      <span class="folder-name">${folder.name}</span>
+      <div class="folder-info">
+        <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font mat-icon-no-color folder-toggle-icon" aria-hidden="true">chevron_right</mat-icon>
+        <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font folder-icon" aria-hidden="true" style="${iconColorStyle}">folder</mat-icon>
+        <span class="folder-name">${folder.name}</span>
+      </div>
       
       <span class="folder-actions">
         ${!folder.isDefault && !isSubfolder ? `
@@ -294,7 +294,7 @@ function activateInlineEdit(nameSpan, folderId) {
   }
 
   nameSpan.style.display = 'none';
-  header.insertBefore(input, nameSpan.nextSibling);
+  nameSpan.after(input);
   if (pickerContainer) header.appendChild(pickerContainer); 
   
   input.focus();
