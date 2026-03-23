@@ -244,10 +244,23 @@ input-area-v2 { border-radius: 24px !important; }
 location-footer { max-width: 428px !important; }
 
 /* Global Border Radius Consistency */
-.conversation, .mat-mdc-list-item, .pending-conversation-animation {
+.conversation, .mat-mdc-list-item, .pending-conversation-animation, .side-nav-entry-button {
   border-radius: var(--gemini-radius) !important;
 }
 
+.side-nav-entry-container,
+.gems-list-container {
+    padding-left: 12px !important;
+    padding-right: 2px !important;
+}
+
+.side-nav-entry-button {
+    padding-left: 12px !important;
+}
+
+.my-stuff-side-nav {
+    padding-left: 0px !important;
+}
 
 /* ==========================================================================
    5. RESIZERS (SIDEBAR & TOC)
