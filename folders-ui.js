@@ -196,7 +196,7 @@ function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
 }
 
 
-function activateInlineEdit(nameSpan, folderId) {
+function activateInlineEdit(nameSpan, folderId, isNew = false) {
   if (!nameSpan || !folderId || nameSpan.isEditing) return;
 
   nameSpan.isEditing = true;
@@ -214,6 +214,11 @@ function activateInlineEdit(nameSpan, folderId) {
   input.type = 'text';
   input.value = originalName;
   input.className = 'folder-name-input';
+
+  // Zwingt das Input-Feld, mit dem Text mitzuwachsen/zu schrumpfen
+  input.style.fieldSizing = 'content';
+  // Sorgt dafür, dass das Feld nicht komplett verschwindet, wenn man den Text löscht
+  input.style.minWidth = '1ch';
 
   let pickerContainer = null;
 
@@ -303,11 +308,19 @@ function activateInlineEdit(nameSpan, folderId) {
   if (pickerContainer) header.appendChild(pickerContainer); 
   
   input.focus();
-  const len = input.value.length;
-  input.setSelectionRange(len, len);
+  if (isNew) {
+    input.select();
+  } else {
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
+  }
 
   const saveChanges = async () => {
     const newName = input.value.trim();
+    
+    // UI sofort aktualisieren, bevor asynchrone Prozesse starten (behebt das Flackern)
+    const finalName = (newName && newName !== originalName) ? newName : originalName;
+    nameSpan.textContent = finalName;
 
     input.removeEventListener('keydown', handleKey);
     document.removeEventListener('mousedown', handleOutsideClick);
@@ -319,6 +332,7 @@ function activateInlineEdit(nameSpan, folderId) {
     
     header.classList.remove('is-editing');
 
+    // Ab hier läuft das Speichern im Hintergrund
     let structure = await getFolderStructure();
     const folder = structure.find(f => f.id === folderId);
     let hasChanges = false;
@@ -326,10 +340,7 @@ function activateInlineEdit(nameSpan, folderId) {
     if (folder) {
         if (newName && newName !== originalName) {
             folder.name = newName;
-            nameSpan.textContent = newName;
             hasChanges = true;
-        } else {
-            nameSpan.textContent = originalName;
         }
         
         // Farbe nur speichern, wenn wir im Hauptordner sind
@@ -338,13 +349,19 @@ function activateInlineEdit(nameSpan, folderId) {
             header.dataset.folderColor = currentColor;
             const icon = header.querySelector('.folder-icon');
             if (icon) icon.style.setProperty('color', currentColor, 'important');
+            
+            // Unterordner-Ränder direkt im DOM aktualisieren
+            const subfolders = document.querySelectorAll(`.folder-header.is-subfolder[data-parent-id="${folderId}"]`);
+            subfolders.forEach(sub => {
+                sub.style.setProperty('border-left', `4px solid ${currentColor}`, 'important');
+                sub.dataset.folderColor = currentColor;
+            });
+            
             hasChanges = true;
         }
 
         if (hasChanges) {
             await saveFolderStructure(structure);
-            await renderInitialFolders();
-            await syncFullListOrder();
         }
     }
   };

@@ -505,7 +505,7 @@ top-bar-actions {
   top: 1px;
   font: inherit; color: var(--gemini-text-selected); font-weight: 500;
   border: none; outline: none; background: transparent;
-  padding: 0; margin: 0; flex-grow: 1; min-width: 0;
+  padding: 0; margin: 0; min-width: 0; /* flex-grow: 1; wurde hier entfernt */
 }
 
 /* Export Button Tooltip */
@@ -1334,8 +1334,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 }
 
 /* 4. HOVER-MECHANIK */
-.folder-header:hover .folder-info,
-.folder-header.is-editing .folder-info {
+.folder-header:hover .folder-info {
   background-color: transparent !important;
 }
 

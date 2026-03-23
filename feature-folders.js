@@ -322,7 +322,7 @@ async function handleNewFolderClick() {
     delete newHeaderEl.dataset.isNew;
     
     const nameSpan = newHeaderEl.querySelector('.folder-name');
-    activateInlineEdit(nameSpan, newFolder.id);
+    activateInlineEdit(nameSpan, newFolder.id, true);
   }
 }
 
@@ -395,7 +395,7 @@ async function handleAddSubfolder(parentId) {
     delete newHeaderEl.dataset.isNew;
     
     const nameSpan = newHeaderEl.querySelector('.folder-name');
-    activateInlineEdit(nameSpan, newSubfolder.id);
+    activateInlineEdit(nameSpan, newSubfolder.id, true);
   }
 }
 
