@@ -288,7 +288,7 @@ async function handleNewFolderClick() {
     chatIds: [],
     isOpen: true,
     isDefault: false,
-    color: randomColor // Weist dem neuen Ordner die Zufallsfarbe zu
+    color: randomColor 
   };
 
   const defaultIndex = structure.findIndex(f => f.isDefault);
@@ -300,25 +300,103 @@ async function handleNewFolderClick() {
 
   await saveFolderStructure(structure);
 
-  // Manual render to avoid flicker
   const container = document.querySelector('.conversations-container');
   if (container) {
     const customFolders = structure.filter(f => !f.isDefault);
     const index = customFolders.findIndex(f => f.id === newFolder.id);
     const newHeaderEl = renderSingleFolder(newFolder, index, customFolders.length);
+    
+    // NEU: Bereite die Slide-Down Animation vor
+    newHeaderEl.classList.add('folder-rolled-up');
+    newHeaderEl.dataset.isNew = "true"; // Schützt vor syncFullListOrder
+    
     container.appendChild(newHeaderEl);
+    
+    await syncFullListOrder();
+
+    // NEU: Zwingt den Browser, den unsichtbaren Status zu registrieren (verhindert Flackern)
+    void newHeaderEl.offsetHeight;
+
+    // Startet die Aufklapp-Animation und den Bearbeitungsmodus
+    newHeaderEl.classList.remove('folder-rolled-up');
+    delete newHeaderEl.dataset.isNew;
+    
+    const nameSpan = newHeaderEl.querySelector('.folder-name');
+    activateInlineEdit(nameSpan, newFolder.id);
+  }
+}
+
+async function handleAddSubfolder(parentId) {
+  let structure = await getFolderStructure();
+
+  const parentIndex = structure.findIndex(f => f.id === parentId);
+  let wasParentClosed = false;
+  
+  if (parentIndex > -1 && !structure[parentIndex].isOpen) {
+    structure[parentIndex].isOpen = true;
+    wasParentClosed = true;
   }
 
-  await syncFullListOrder();
+  const newSubfolder = {
+    id: `folder-${crypto.randomUUID()}`,
+    name: "Neuer Unterordner",
+    chatIds: [],
+    isOpen: true,
+    isDefault: false,
+    parentId: parentId 
+  };
 
-  // Start edit mode
-  setTimeout(() => {
-    const newHeader = document.querySelector(`.folder-header[data-folder-id="${newFolder.id}"]`);
-    if (newHeader) {
-      const nameSpan = newHeader.querySelector('.folder-name');
-      activateInlineEdit(nameSpan, newFolder.id);
+  if (parentIndex > -1) {
+    structure.splice(parentIndex + 1, 0, newSubfolder);
+  } else {
+    structure.push(newSubfolder);
+  }
+
+  await saveFolderStructure(structure);
+  
+  const container = document.querySelector('.conversations-container');
+  if (container) {
+    const customFolders = structure.filter(f => !f.isDefault);
+    const index = customFolders.findIndex(f => f.id === newSubfolder.id);
+    const parent = structure.find(p => p.id === parentId);
+    const parentColor = parent ? parent.color : null;
+    
+    const newHeaderEl = renderSingleFolder(newSubfolder, index, customFolders.length, parentColor);
+    
+    // NEU: Bereite die Slide-Down Animation vor
+    newHeaderEl.classList.add('folder-rolled-up');
+    newHeaderEl.dataset.isNew = "true";
+    
+    const parentEl = container.querySelector(`.folder-header[data-folder-id="${parentId}"]`);
+    if (parentEl) {
+        if (wasParentClosed) {
+            parentEl.classList.add('is-open');
+            const childItems = document.querySelectorAll(`.conversations-container .conversation-items-container[data-folder-id="${parentId}"], .folder-header.is-subfolder[data-parent-id="${parentId}"]`);
+            childItems.forEach(el => {
+               el.classList.remove('chat-item-rolled-up');
+               el.classList.remove('folder-rolled-up');
+            });
+        }
+        
+        const parentOrder = parseInt(parentEl.style.order || "0", 10);
+        newHeaderEl.style.order = parentOrder + 1;
+        parentEl.after(newHeaderEl);
+    } else {
+        container.appendChild(newHeaderEl);
     }
-  }, 0);
+
+    await syncFullListOrder();
+
+    // NEU: Zwingt den Browser, den unsichtbaren Status zu registrieren (verhindert Flackern)
+    void newHeaderEl.offsetHeight;
+
+    // Startet die Aufklapp-Animation und den Bearbeitungsmodus
+    newHeaderEl.classList.remove('folder-rolled-up');
+    delete newHeaderEl.dataset.isNew;
+    
+    const nameSpan = newHeaderEl.querySelector('.folder-name');
+    activateInlineEdit(nameSpan, newSubfolder.id);
+  }
 }
 
 async function toggleFolder(folderId) {
@@ -331,11 +409,8 @@ async function toggleFolder(folderId) {
 
   const folderHeader = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
   if (folderHeader) {
-    if (folder.isOpen) {
-      folderHeader.classList.add('is-open');
-    } else {
-      folderHeader.classList.remove('is-open');
-    }
+    if (folder.isOpen) folderHeader.classList.add('is-open');
+    else folderHeader.classList.remove('is-open');
   }
 
   const chatsInFolder = document.querySelectorAll(
@@ -343,38 +418,67 @@ async function toggleFolder(folderId) {
   );
 
   chatsInFolder.forEach(chatEl => {
-    // Toggle animation class
-    if (folder.isOpen) {
-      // Remove class to start "1fr" animation
-      chatEl.classList.remove('chat-item-rolled-up');
-    } else {
-      // Add class to start "0fr" animation
-      chatEl.classList.add('chat-item-rolled-up');
-    }
+    if (folder.isOpen) chatEl.classList.remove('chat-item-rolled-up');
+    else chatEl.classList.add('chat-item-rolled-up');
+  });
+
+  // Unterordner und deren Chats ebenfalls mit ein-/ausblenden
+  const subfolderHeaders = document.querySelectorAll(`.folder-header.is-subfolder[data-parent-id="${folderId}"]`);
+  
+  subfolderHeaders.forEach(subHeader => {
+      const subId = subHeader.dataset.folderId;
+      const subFolderData = structure.find(f => f.id === subId);
+      
+      if (folder.isOpen) {
+          subHeader.classList.remove('folder-rolled-up'); // NEU: Animation entfernen
+          if (subFolderData && subFolderData.isOpen) {
+              const subChats = document.querySelectorAll(`.conversations-container .conversation-items-container[data-folder-id="${subId}"]`);
+              subChats.forEach(c => c.classList.remove('chat-item-rolled-up'));
+          }
+      } else {
+          subHeader.classList.add('folder-rolled-up'); // NEU: Animation hinzufügen
+          const subChats = document.querySelectorAll(`.conversations-container .conversation-items-container[data-folder-id="${subId}"]`);
+          subChats.forEach(c => c.classList.add('chat-item-rolled-up'));
+      }
   });
 }
 
 async function renderInitialFolders() {
   if (isRendering) return;
   isRendering = true;
-  if (mainObserver) mainObserver.disconnect(); // Important: mainObserver is in main.js
+  
+  // Falls mainObserver existiert (aus main.js), pausieren wir ihn
+  if (typeof mainObserver !== 'undefined' && mainObserver) mainObserver.disconnect(); 
 
   const structure = await getFolderStructure();
   const conversationContainer = document.querySelector('.conversations-container');
 
   if (!conversationContainer) {
     isRendering = false;
-    if (mainObserver) mainObserver.observe(document.body, mainObserverConfig); // mainObserverConfig is in main.js
+    if (typeof mainObserver !== 'undefined' && mainObserver) mainObserver.observe(document.body, mainObserverConfig);
     return;
   }
 
+  // Alte Header aufräumen
   conversationContainer.querySelectorAll('.folder-header').forEach(h => h.remove());
 
   const customFolders = structure.filter(f => !f.isDefault);
   const defaultFolder = structure.find(f => f.isDefault);
 
+  // Ordner neu rendern
   customFolders.forEach((folder, index) => {
-    const folderEl = renderSingleFolder(folder, index, customFolders.length);
+    let parentColor = null;
+    
+    // Wenn es ein Unterordner ist, Farbe des Hauptordners ermitteln
+    if (folder.parentId) {
+      const parent = structure.find(p => p.id === folder.parentId);
+      if (parent) {
+        parentColor = parent.color;
+      }
+    }
+    
+    // Die parentColor wird als 4. Argument übergeben
+    const folderEl = renderSingleFolder(folder, index, customFolders.length, parentColor);
     conversationContainer.appendChild(folderEl);
   });
 
@@ -383,7 +487,7 @@ async function renderInitialFolders() {
     conversationContainer.appendChild(folderEl);
   }
 
-  if (mainObserver) mainObserver.observe(document.body, mainObserverConfig);
+  if (typeof mainObserver !== 'undefined' && mainObserver) mainObserver.observe(document.body, mainObserverConfig);
   isRendering = false;
 }
 
@@ -462,10 +566,8 @@ async function syncFullListOrder() {
 
   const orderCounters = new Map();
   let baseOrder = 0;
-  let dbNeedsUpdate = false; // Flag für notwendige Datenbankspeicherungen
+  let dbNeedsUpdate = false; 
 
-  // --- FLICKER FIX ---
-  // Separate folders to update button status
   let customFolders = structure.filter(f => !f.isDefault);
   const defaultFolder = structure.find(f => f.isDefault);
   let sortedStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
@@ -477,21 +579,41 @@ async function syncFullListOrder() {
     if (headerEl) {
       headerEl.style.order = baseOrder;
 
-      // Set 'is-open' status for icon based on restored data
       if (folder.isOpen) {
         headerEl.classList.add('is-open');
       } else {
         headerEl.classList.remove('is-open');
       }
 
-      // Update button status
+      // 1. Initialer Zuklapp-Status für Unterordner 
+      // (NEU: Überspringt Elemente, die gerade per Animation einfliegen)
+      if (folder.parentId && !headerEl.dataset.isNew) {
+          const parent = structure.find(p => p.id === folder.parentId);
+          if (parent && !parent.isOpen) {
+              headerEl.classList.add('folder-rolled-up');
+          } else {
+              headerEl.classList.remove('folder-rolled-up');
+          }
+      }
+
+      // 2. NEU: Deaktivieren der Pfeile basierend auf der Position
       if (!folder.isDefault) {
         const upBtn = headerEl.querySelector('[data-action="move-up"]');
         const downBtn = headerEl.querySelector('[data-action="move-down"]');
-        const customIndex = customFolders.findIndex(f => f.id === folder.id);
-
-        if (upBtn) upBtn.disabled = (customIndex === 0);
-        if (downBtn) downBtn.disabled = (customIndex === customFolders.length - 1);
+        
+        if (folder.parentId) {
+            // Logik für Unterordner
+            const siblings = customFolders.filter(f => f.parentId === folder.parentId);
+            const subIndex = siblings.findIndex(f => f.id === folder.id);
+            if (upBtn) upBtn.disabled = (subIndex === 0);
+            if (downBtn) downBtn.disabled = (subIndex === siblings.length - 1);
+        } else {
+            // Logik für Hauptordner
+            const mainFolders = customFolders.filter(f => !f.parentId);
+            const mainIndex = mainFolders.findIndex(f => f.id === folder.id);
+            if (upBtn) upBtn.disabled = (mainIndex === 0);
+            if (downBtn) downBtn.disabled = (mainIndex === mainFolders.length - 1);
+        }
       }
     }
 
@@ -524,9 +646,7 @@ async function syncFullListOrder() {
       chatEl.addEventListener('drop', handleDropOnChat);
     }
 
-    // NEU: Geister-Elemente animiert ausblenden und endgültig löschen
     if (syncedDeletedChats.includes(chatId)) {
-        // Das Element sanft kollabieren lassen (simuliert den nativen Löschvorgang)
         chatEl.style.transition = 'all 0.3s ease-out';
         chatEl.style.minHeight = '0px';
         chatEl.style.height = '0px';
@@ -536,18 +656,12 @@ async function syncFullListOrder() {
         chatEl.style.overflow = 'hidden';
         chatEl.style.border = 'none';
         
-        // Nach der Animation den HTML-Knoten restlos aus dem DOM entfernen
-        setTimeout(() => {
-            chatEl.remove();
-        }, 300);
-        
+        setTimeout(() => { chatEl.remove(); }, 300);
         return;
     }
 
     let folderId = chatFolderMap.get(chatId);
 
-    // NEU: Zwangszuweisung von unbekannten Chats
-    // Wenn die ID weder im Map existiert noch anderweitig zugeordnet ist
     if (!folderId) {
       folderId = defaultFolderId;
       if (defaultFolder) {
@@ -557,25 +671,31 @@ async function syncFullListOrder() {
             triggerExternalUpdate();
         }
         dbNeedsUpdate = true;
-        console.log(`Gemini Exporter: Unbekannter Chat ${chatId} zur Datenbank hinzugefügt.`);
       }
     }
 
     const folder = structure.find(f => f.id === folderId) || defaultFolder;
 
     if (!folder) {
-        console.warn(`Gemini Exporter: Ordner für Chat ${chatId} nicht gefunden. Überspringe Sortierung.`);
         chatEl.style.order = '99999';
         return;
     }
 
     let order = orderCounters.get(folder.id);
     chatEl.style.order = order;
-
     orderCounters.set(folder.id, order + 1);
 
-    // Set initial state (open/closed)
-    if (folder.isOpen) {
+    // NEU: Initialer Status für Chats unter Berücksichtigung des Hauptordners
+    const isFolderOpen = folder.isOpen;
+    let isParentOpen = true;
+    
+    if (folder.parentId) {
+        const parent = structure.find(p => p.id === folder.parentId);
+        if (parent && !parent.isOpen) isParentOpen = false;
+    }
+    
+    // Nur sichtbar, wenn der eigene Ordner UND (falls existent) der Hauptordner offen sind
+    if (isFolderOpen && isParentOpen) {
       chatEl.classList.remove('chat-item-rolled-up');
     } else {
       chatEl.classList.add('chat-item-rolled-up');
@@ -584,7 +704,6 @@ async function syncFullListOrder() {
     chatEl.dataset.folderId = folder.id;
   });
 
-  // Nur schreiben, wenn sich tatsächlich etwas geändert hat, um Storage-Limits zu schonen
   if (dbNeedsUpdate) {
     await saveFolderStructure(structure);
   }
@@ -599,44 +718,95 @@ async function handleDeleteFolder(folderId) {
 
   const folder = structure[folderIndex];
 
-  const defaultFolder = structure.find(f => f.isDefault);
-  if (!defaultFolder) return;
+  // NEU: Wenn es ein Unterordner ist, lade Chats in den Hauptordner
+  if (folder.parentId) {
+      const parentFolder = structure.find(f => f.id === folder.parentId);
+      if (parentFolder) {
+          parentFolder.chatIds.unshift(...folder.chatIds);
+      } else {
+          const defaultFolder = structure.find(f => f.isDefault);
+          if (defaultFolder) defaultFolder.chatIds.unshift(...folder.chatIds);
+      }
+  } else {
+      // Wenn es ein Hauptordner ist, lade Chats in Standard-Ordner
+      const defaultFolder = structure.find(f => f.isDefault);
+      if (defaultFolder) defaultFolder.chatIds.unshift(...folder.chatIds);
+      
+      // Optional: Löscht automatisch alle Unterordner, wenn der Hauptordner gelöscht wird
+      structure = structure.filter(f => f.parentId !== folderId);
+  }
 
-  defaultFolder.chatIds.unshift(...folder.chatIds);
-  structure.splice(folderIndex, 1);
+  // Ordner aus der DB entfernen
+  const updatedFolderIndex = structure.findIndex(f => f.id === folderId);
+  if(updatedFolderIndex !== -1) {
+      structure.splice(updatedFolderIndex, 1);
+  }
+  
   await saveFolderStructure(structure);
 
-  // --- FLICKER FIX ---
-  // 1. Manually remove header
   const headerEl = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
   if (headerEl) headerEl.remove();
 
-  // 2. Sync *immediately*
   await syncFullListOrder();
 }
 
 async function handleMoveFolder(folderId, direction) {
   let structure = await getFolderStructure();
 
-  let customFolders = structure.filter(f => !f.isDefault);
   const defaultFolder = structure.find(f => f.isDefault);
+  let mainFolders = structure.filter(f => !f.parentId && !f.isDefault);
+  
+  const targetFolder = structure.find(f => f.id === folderId);
+  if (!targetFolder) return;
 
-  const index = customFolders.findIndex(f => f.id === folderId);
-  if (index === -1) return;
-
-  if (direction === 'up' && index > 0) {
-    [customFolders[index], customFolders[index - 1]] = [customFolders[index - 1], customFolders[index]];
-  } else if (direction === 'down' && index < customFolders.length - 1) {
-    [customFolders[index], customFolders[index + 1]] = [customFolders[index + 1], customFolders[index]];
+  if (targetFolder.parentId) {
+      // Unterordner innerhalb der Geschwister verschieben
+      let siblings = structure.filter(f => f.parentId === targetFolder.parentId);
+      const idx = siblings.findIndex(f => f.id === folderId);
+      
+      if (direction === 'up' && idx > 0) {
+          [siblings[idx], siblings[idx - 1]] = [siblings[idx - 1], siblings[idx]];
+      } else if (direction === 'down' && idx < siblings.length - 1) {
+          [siblings[idx], siblings[idx + 1]] = [siblings[idx + 1], siblings[idx]];
+      } else {
+          return;
+      }
+      
+      // Struktur basierend auf der neuen Reihenfolge strikt gruppiert aufbauen
+      let newStructure = [];
+      mainFolders.forEach(main => {
+          newStructure.push(main);
+          if (main.id === targetFolder.parentId) {
+              newStructure.push(...siblings); 
+          } else {
+              newStructure.push(...structure.filter(f => f.parentId === main.id));
+          }
+      });
+      if (defaultFolder) newStructure.push(defaultFolder);
+      await saveFolderStructure(newStructure);
+      
   } else {
-    return;
+      // Hauptordner verschieben
+      const idx = mainFolders.findIndex(f => f.id === folderId);
+      
+      if (direction === 'up' && idx > 0) {
+          [mainFolders[idx], mainFolders[idx - 1]] = [mainFolders[idx - 1], mainFolders[idx]];
+      } else if (direction === 'down' && idx < mainFolders.length - 1) {
+          [mainFolders[idx], mainFolders[idx + 1]] = [mainFolders[idx + 1], mainFolders[idx]];
+      } else {
+          return;
+      }
+      
+      // Struktur neu zusammensetzen: Unterordner reisen automatisch mit ihrem Hauptordner mit!
+      let newStructure = [];
+      mainFolders.forEach(main => {
+          newStructure.push(main);
+          newStructure.push(...structure.filter(f => f.parentId === main.id)); 
+      });
+      if (defaultFolder) newStructure.push(defaultFolder);
+      await saveFolderStructure(newStructure);
   }
 
-  const newStructure = defaultFolder ? [...customFolders, defaultFolder] : customFolders;
-  await saveFolderStructure(structure);
-
-  // --- FLICKER FIX ---
-  // 1. Sync *immediately*
   await syncFullListOrder();
 }
 

@@ -88,12 +88,25 @@ function createFolderButton() {
   );
 }
 
-function renderSingleFolder(folder, index, totalFolders) {
+function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
   const header = document.createElement('div');
-  header.className = 'folder-header';
+  const isSubfolder = folder.parentId != null;
+  
+  header.className = isSubfolder ? 'folder-header is-subfolder' : 'folder-header';
   header.dataset.folderId = folder.id;
-  // Speichere die Farbe im DOM für späteren schnellen Zugriff beim Editieren
-  header.dataset.folderColor = folder.color || '#a8c7fa';
+  
+  // Wichtig für das spätere Ausblenden beim Zuklappen des Hauptordners
+  if (isSubfolder) {
+      header.dataset.parentId = folder.parentId; 
+  }
+  
+  const effectiveColor = isSubfolder ? (parentColor || '#a8c7fa') : (folder.color || '#a8c7fa');
+  header.dataset.folderColor = effectiveColor;
+  
+  if (isSubfolder) {
+      // Zwingt den Browser, den farbigen Rand des Hauptordners anzuzeigen
+      header.style.setProperty('border-left', `4px solid ${effectiveColor}`, 'important');
+  }
 
   let baseOrder = 1000;
   try {
@@ -101,7 +114,7 @@ function renderSingleFolder(folder, index, totalFolders) {
   } catch (e) {}
   header.style.order = baseOrder;
 
-  const iconColorStyle = folder.color ? `color: ${folder.color} !important;` : '';
+  const iconColorStyle = effectiveColor ? `color: ${effectiveColor} !important;` : '';
 
   header.innerHTML = `
       <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font mat-icon-no-color folder-toggle-icon" aria-hidden="true">chevron_right</mat-icon>
@@ -111,11 +124,17 @@ function renderSingleFolder(folder, index, totalFolders) {
       <span class="folder-name">${folder.name}</span>
       
       <span class="folder-actions">
+        ${!folder.isDefault && !isSubfolder ? `
+          <button class="action-btn" data-action="add-subfolder" title="Unterordner erstellen">
+            <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">add</mat-icon>
+          </button>
+        ` : ''}
+        
         ${!folder.isDefault ? `
-          <button class="action-btn" data-action="move-up" title="Nach oben" ${index === 0 ? 'disabled style="cursor: pointer;"' : ''}>
+          <button class="action-btn" data-action="move-up" title="Nach oben" ${index === 0 ? 'disabled' : ''}>
             <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">arrow_upward</mat-icon>
           </button>
-          <button class="action-btn" data-action="move-down" title="Nach unten" ${index === totalFolders - 1 ? 'disabled style="cursor: pointer;"' : ''}>
+          <button class="action-btn" data-action="move-down" title="Nach unten" ${index === totalFolders - 1 ? 'disabled' : ''}>
             <mat-icon class="mat-icon notranslate google-symbols mat-ligature-font" aria-hidden="true">arrow_downward</mat-icon>
           </button>
         ` : ''}
@@ -136,7 +155,6 @@ function renderSingleFolder(folder, index, totalFolders) {
     header.classList.add('is-open');
   }
 
-  // ... (Die Event-Listener für header.addEventListener bleiben identisch)
   header.addEventListener('click', (e) => {
     if (e.target.closest('.action-btn')) return;
     toggleFolder(folder.id);
@@ -144,11 +162,15 @@ function renderSingleFolder(folder, index, totalFolders) {
 
   header.querySelector('.folder-actions').addEventListener('click', (e) => {
     const button = e.target.closest('.action-btn');
-    if (!button) return;
+    
+    // NEU: Bricht ab, wenn kein Button getroffen wurde ODER der Button das Attribut "disabled" hat
+    if (!button || button.disabled) return;
+    
     e.stopPropagation();
 
     const action = button.dataset.action;
     switch (action) {
+      case 'add-subfolder': handleAddSubfolder(folder.id); break;
       case 'move-up': handleMoveFolder(folder.id, 'up'); break;
       case 'move-down': handleMoveFolder(folder.id, 'down'); break;
       case 'rename': 
@@ -159,8 +181,7 @@ function renderSingleFolder(folder, index, totalFolders) {
     }
   });
 
-  // Drag & Drop Listener (sofern vorhanden)
-  if(typeof handleDragOverFolder !== 'undefined') {
+  if (typeof handleDragOverFolder !== 'undefined') {
     header.addEventListener('dragover', handleDragOverFolder);
     header.addEventListener('dragleave', handleDragLeaveFolder);
     header.addEventListener('drop', handleDropOnFolder);
@@ -176,129 +197,121 @@ function activateInlineEdit(nameSpan, folderId) {
   nameSpan.isEditing = true;
 
   const header = nameSpan.closest('.folder-header');
-  
-  // NEU: Klasse hinzufügen, damit overflow: visible wird
   header.classList.add('is-editing'); 
   
   const originalName = nameSpan.textContent;
   let currentColor = header.dataset.folderColor || '#a8c7fa';
+  
+  // NEU: Prüfen, ob wir uns in einem Unterordner befinden
+  const isSubfolder = header.classList.contains('is-subfolder'); 
 
-  // 1. Text Input erstellen
   const input = document.createElement('input');
   input.type = 'text';
   input.value = originalName;
   input.className = 'folder-name-input';
 
-  // 2. Color Picker Popup erstellen
-  const pickerContainer = document.createElement('div');
-  pickerContainer.className = 'folder-color-picker-popup';
-  pickerContainer.addEventListener('mousedown', e => e.stopPropagation());
-  pickerContainer.addEventListener('click', e => e.stopPropagation());
+  let pickerContainer = null;
 
-  // Funktion zum Aktualisieren der Live-Vorschau (Icon + Innerer Kreis)
-  const updateUIColors = (color) => {
-    // 1. Ordner-Icon aktualisieren
-    const icon = header.querySelector('.folder-icon');
-    if (icon) icon.style.setProperty('color', color, 'important');
-    
-    // 2. Inneren Kreis im Color-Picker aktualisieren
-    const innerCircle = pickerContainer.querySelector('.custom-color-inner');
-    if (innerCircle) innerCircle.style.backgroundColor = color;
-  };
+  // NEU: Color-Picker NUR generieren, wenn es sich um einen Hauptordner handelt
+  if (!isSubfolder) {
+      pickerContainer = document.createElement('div');
+      pickerContainer.className = 'folder-color-picker-popup';
+      pickerContainer.addEventListener('mousedown', e => e.stopPropagation());
+      pickerContainer.addEventListener('click', e => e.stopPropagation());
 
-  const updatePickerSelection = (color) => {
-    pickerContainer.querySelectorAll('.color-swatch').forEach(s => {
-      if (color && s.dataset.color.toLowerCase() === color.toLowerCase()) {
-        s.classList.add('selected');
-      } else {
-        s.classList.remove('selected');
-      }
-    });
-  };
+      const updateUIColors = (color) => {
+        const icon = header.querySelector('.folder-icon');
+        if (icon) icon.style.setProperty('color', color, 'important');
+        const innerCircle = pickerContainer.querySelector('.custom-color-inner');
+        if (innerCircle) innerCircle.style.backgroundColor = color;
+      };
 
-  // Grid-Container für die Standardfarben
-  const swatchesContainer = document.createElement('div');
-  swatchesContainer.className = 'folder-color-swatches';
+      const updatePickerSelection = (color) => {
+        pickerContainer.querySelectorAll('.color-swatch').forEach(s => {
+          if (color && s.dataset.color.toLowerCase() === color.toLowerCase()) {
+            s.classList.add('selected');
+          } else {
+            s.classList.remove('selected');
+          }
+        });
+      };
 
-  FOLDER_COLORS.forEach(color => {
-     const swatch = document.createElement('div');
-     swatch.className = 'color-swatch';
-     swatch.style.backgroundColor = color;
-     swatch.dataset.color = color;
-     if (color.toLowerCase() === currentColor.toLowerCase()) swatch.classList.add('selected');
-     
-     swatch.addEventListener('mousedown', (e) => {
-         e.preventDefault(); 
-         e.stopPropagation();
-         currentColor = color;
-         updatePickerSelection(color);
-         updateUIColors(currentColor); // Nutzt nun die neue kombinierte Funktion
-     });
-     swatchesContainer.appendChild(swatch);
-  });
-  
-  pickerContainer.appendChild(swatchesContainer);
+      const swatchesContainer = document.createElement('div');
+      swatchesContainer.className = 'folder-color-swatches';
 
-  // Trennlinie
-  const separator = document.createElement('hr');
-  separator.className = 'color-picker-separator';
-  pickerContainer.appendChild(separator);
+      FOLDER_COLORS.forEach(color => {
+         const swatch = document.createElement('div');
+         swatch.className = 'color-swatch';
+         swatch.style.backgroundColor = color;
+         swatch.dataset.color = color;
+         if (color.toLowerCase() === currentColor.toLowerCase()) swatch.classList.add('selected');
+         
+         swatch.addEventListener('mousedown', (e) => {
+             e.preventDefault(); 
+             e.stopPropagation();
+             currentColor = color;
+             updatePickerSelection(color);
+             updateUIColors(currentColor);
+         });
+         swatchesContainer.appendChild(swatch);
+      });
+      
+      pickerContainer.appendChild(swatchesContainer);
 
-  // Bereich für die eigene Farbe
-  const customSection = document.createElement('div');
-  customSection.className = 'custom-color-section';
+      const separator = document.createElement('hr');
+      separator.className = 'color-picker-separator';
+      pickerContainer.appendChild(separator);
 
-  const customLabel = document.createElement('div');
-  customLabel.className = 'custom-color-label';
-  customLabel.textContent = 'Eigene Farbe:';
-  customSection.appendChild(customLabel);
+      const customSection = document.createElement('div');
+      customSection.className = 'custom-color-section';
 
-  // Der bunte Ring ohne Icon
-  const customInputWrapper = document.createElement('div');
-  customInputWrapper.className = 'custom-color-wrapper';
-  
-  const customInner = document.createElement('div');
-  customInner.className = 'custom-color-inner';
-  customInner.style.backgroundColor = currentColor; // NEU: Setzt die initiale Farbe
-  customInputWrapper.appendChild(customInner);
+      const customLabel = document.createElement('div');
+      customLabel.className = 'custom-color-label';
+      customLabel.textContent = 'Eigene Farbe:';
+      customSection.appendChild(customLabel);
 
-  const customInput = document.createElement('input');
-  customInput.type = 'color';
-  customInput.value = currentColor;
-  
-  customInput.addEventListener('input', (e) => {
-      currentColor = e.target.value;
-      updatePickerSelection(null); 
-      updateUIColors(currentColor); // Nutzt nun die neue kombinierte Funktion
-  });
-  
-  customInputWrapper.appendChild(customInput);
-  customSection.appendChild(customInputWrapper);
-  pickerContainer.appendChild(customSection);
+      const customInputWrapper = document.createElement('div');
+      customInputWrapper.className = 'custom-color-wrapper';
+      
+      const customInner = document.createElement('div');
+      customInner.className = 'custom-color-inner';
+      customInner.style.backgroundColor = currentColor; 
+      customInputWrapper.appendChild(customInner);
 
-  // Elemente in den DOM einfügen
+      const customInput = document.createElement('input');
+      customInput.type = 'color';
+      customInput.value = currentColor;
+      
+      customInput.addEventListener('input', (e) => {
+          currentColor = e.target.value;
+          updatePickerSelection(null); 
+          updateUIColors(currentColor);
+      });
+      
+      customInputWrapper.appendChild(customInput);
+      customSection.appendChild(customInputWrapper);
+      pickerContainer.appendChild(customSection);
+  }
+
   nameSpan.style.display = 'none';
   header.insertBefore(input, nameSpan.nextSibling);
-  header.appendChild(pickerContainer);
+  if (pickerContainer) header.appendChild(pickerContainer); 
   
   input.focus();
   const len = input.value.length;
   input.setSelectionRange(len, len);
 
-  // 3. Speicher- und Beenden-Logik
   const saveChanges = async () => {
     const newName = input.value.trim();
 
-    // Event-Listener sauber entfernen
     input.removeEventListener('keydown', handleKey);
     document.removeEventListener('mousedown', handleOutsideClick);
 
     input.remove();
-    pickerContainer.remove();
+    if (pickerContainer) pickerContainer.remove(); 
     nameSpan.style.display = '';
     nameSpan.isEditing = false;
     
-    // NEU: Klasse wieder entfernen
     header.classList.remove('is-editing');
 
     let structure = await getFolderStructure();
@@ -306,7 +319,6 @@ function activateInlineEdit(nameSpan, folderId) {
     let hasChanges = false;
     
     if (folder) {
-        // Namensänderung prüfen
         if (newName && newName !== originalName) {
             folder.name = newName;
             nameSpan.textContent = newName;
@@ -315,30 +327,29 @@ function activateInlineEdit(nameSpan, folderId) {
             nameSpan.textContent = originalName;
         }
         
-        // Farbänderung prüfen
-        if (currentColor !== header.dataset.folderColor) {
+        // Farbe nur speichern, wenn wir im Hauptordner sind
+        if (!isSubfolder && currentColor !== header.dataset.folderColor) {
             folder.color = currentColor;
             header.dataset.folderColor = currentColor;
-            updateUIColors(currentColor);
+            const icon = header.querySelector('.folder-icon');
+            if (icon) icon.style.setProperty('color', currentColor, 'important');
             hasChanges = true;
         }
 
-        // Nur speichern (und synchen), wenn sich wirklich etwas geändert hat
         if (hasChanges) {
             await saveFolderStructure(structure);
+            await renderInitialFolders();
+            await syncFullListOrder();
         }
     }
   };
 
-  // Click-Outside Detektor (sicherer als blur bei Color-Pickern)
   const handleOutsideClick = (e) => {
-      // Wenn der Klick außerhalb des Headers und außerhalb des Color Pickers passierte
       if (!header.contains(e.target)) {
           saveChanges();
       }
   };
   
-  // Kurze Verzögerung, damit der aktuelle Klick den Listener nicht sofort triggert
   setTimeout(() => document.addEventListener('mousedown', handleOutsideClick), 10);
 
   const handleKey = (e) => {
@@ -347,10 +358,12 @@ function activateInlineEdit(nameSpan, folderId) {
       saveChanges();
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      // Bei Abbruch alles auf Anfang zurücksetzen
       input.value = originalName;
-      currentColor = header.dataset.folderColor; 
-      updateUIColors(currentColor);
+      if (!isSubfolder) {
+          currentColor = header.dataset.folderColor; 
+          const icon = header.querySelector('.folder-icon');
+          if (icon) icon.style.setProperty('color', currentColor, 'important');
+      }
       saveChanges();
     }
   };

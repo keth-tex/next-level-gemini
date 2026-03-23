@@ -33,7 +33,8 @@ async function saveFolderStructure(structure) {
             id: folder.id,
             name: folder.name || folder.title || "Ordner",
             color: folder.color,
-            isDefault: folder.isDefault
+            isDefault: folder.isDefault,
+            parentId: folder.parentId
         });
 
         syncData[`folder_${folder.id}`] = folder.chatIds || [];

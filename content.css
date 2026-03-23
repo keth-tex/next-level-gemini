@@ -1226,3 +1226,62 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   overflow: visible !important;
   z-index: 100;
 }
+
+/* --- UNTERORDNER STYLING --- */
+
+.folder-header.is-subfolder {
+  /* background-color: rgba(0, 0, 0, 0.12); /* Etwas dunklerer Hintergrund */
+  background-color: #2a2a2a !important;
+  border-left: 4px solid var(--folder-accent, transparent); /* Farbige Linie links */
+  padding: 11px 16px 11px 0;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+.folder-header.is-subfolder:hover {
+    background-color: #1b1b1c !important;
+}
+
+/* Den linken Abstand des Pfeil-Icons anpassen, damit alles vertikal bündig bleibt */
+.folder-header.is-subfolder .folder-toggle-icon {
+  margin-left: 12px; 
+}
+
+/* Typografie für Unterordner anpassen */
+.folder-header.is-subfolder .folder-name {
+  font-size: 15px !important;
+  color: var(--gemini-text-variant) !important;
+  font-weight: 500 !important; 
+}
+
+/* Das ausgefüllte Ordner-Symbol bei Unterordnern ausblenden */
+.folder-header.is-subfolder .folder-icon {
+  display: none !important;
+}
+
+/* --- ANIMATION FÜR UNTERORDNER --- */
+.folder-header {
+  /* Fügt dem Header eine weiche Transition hinzu, falls noch nicht vorhanden */
+  transition: height 0.3s ease-out, min-height 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.folder-header.folder-rolled-up {
+  min-height: 0px !important;
+  height: 0px !important;
+  margin-top: 0px !important;
+  margin-bottom: 0px !important;
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+
+/* --- STYLING FÜR DEAKTIVIERTE PFEILE --- */
+.action-btn:disabled,
+.action-btn:disabled mat-icon {
+  opacity: 0.65 !important;      /* Grau/Transparent */
+  cursor: default !important;   /* Normaler Mauszeiger statt Verbotsschild */
+}
