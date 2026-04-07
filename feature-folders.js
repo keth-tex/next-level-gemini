@@ -117,7 +117,7 @@ async function preloadAllChats() {
 
     const emergencyResolve = setTimeout(() => {
       finishPreloading("Notfall-Timeout erreicht");
-    }, 12000);
+    }, 30000);
 
     function finishPreloading(reason) {
       clearTimeout(emergencyResolve);
