@@ -13,21 +13,33 @@ let localSaveTimeout = null;
 let syncedDeletedChats = [];
 
 /**
- * Speichert Strukturdaten im Sync-Speicher und den Aufklapp-Status (isOpen) lokal.
- * Wartet strikt auf die Rückmeldung der Cloud, bevor das Schutz-Flag freigegeben wird.
+ * Speichert NUR den lokalen Aufklapp-Status der Ordner.
+ * Verursacht keinen Cloud-Traffic und verhindert das versehentliche
+ * Überschreiben von Cloud-Daten beim Neuladen der Seite.
  */
+async function saveLocalFolderStates(structure) {
+    const localFolderStates = {};
+    structure.forEach(folder => {
+        localFolderStates[folder.id] = folder.isOpen;
+    });
+    return new Promise((resolve) => {
+        chrome.storage.local.set({ 'gemini_folder_states': localFolderStates }, resolve);
+    });
+}
+
+// === ZUVERLÄSSIGE SPEICHERUNG (Ohne fehleranfälliges Diffing) ===
 async function saveFolderStructure(structure) {
-    // 1. Flag setzen: Wir speichern gerade selbst! Timer abbrechen.
     isLocalSaveInProgress = true;
     if (localSaveTimeout) clearTimeout(localSaveTimeout);
 
     const syncData = {};
     const folderMetadataList = [];
     const localFolderStates = {}; 
-    const activeFolderIds = new Set(); // NEU: Set für die IDs aller aktiven Ordner
+    const activeFolderIds = new Set(); 
 
+    // 1. Daten strikt aufbauen
     structure.forEach(folder => {
-        activeFolderIds.add(folder.id); // ID für den Abgleich merken
+        activeFolderIds.add(folder.id); 
 
         folderMetadataList.push({
             id: folder.id,
@@ -42,27 +54,20 @@ async function saveFolderStructure(structure) {
     });
 
     syncData['gemini_folder_metadata'] = folderMetadataList;
-
     syncData['gemini_deleted_chats'] = syncedDeletedChats;
 
-    // 2. WARTEN, bis die Cloud-Speicherung (Sync) wirklich abgeschlossen ist
+    // 2. Cloud Update erzwingen
     await new Promise((resolve) => {
-        chrome.storage.sync.set(syncData, () => {
-            if (chrome.runtime.lastError) {
-                console.error("Gemini Exporter Sync Fehler:", chrome.runtime.lastError.message);
-            }
-            resolve();
-        });
+        chrome.storage.sync.set(syncData, () => resolve());
     });
 
-    // NEU: 3. Karteileichen (verwaiste Ordner-Keys) aus dem Sync-Speicher entfernen
+    // 3. Verwaiste Ordner hart aus der Cloud löschen (Fix für den Lösch-Bug)
     await new Promise((resolve) => {
         chrome.storage.sync.get(null, (items) => {
             const keysToRemove = [];
             for (let key in items) {
                 if (key.startsWith('folder_')) {
                     const folderId = key.replace('folder_', '');
-                    // Wenn die ID nicht im Set der aktiven Ordner ist, markiere sie zum Löschen
                     if (!activeFolderIds.has(folderId)) {
                         keysToRemove.push(key);
                     }
@@ -70,7 +75,6 @@ async function saveFolderStructure(structure) {
             }
             
             if (keysToRemove.length > 0) {
-                console.log(`Gemini Exporter: Entferne ${keysToRemove.length} verwaiste Ordner aus der Datenbank.`);
                 chrome.storage.sync.remove(keysToRemove, () => resolve());
             } else {
                 resolve();
@@ -78,15 +82,12 @@ async function saveFolderStructure(structure) {
         });
     });
 
-    // 4. WARTEN, bis die lokale Speicherung abgeschlossen ist
+    // 4. Lokalen Status speichern
     await new Promise((resolve) => {
-        chrome.storage.local.set({ 'gemini_folder_states': localFolderStates }, () => {
-            resolve();
-        });
+        chrome.storage.local.set({ 'gemini_folder_states': localFolderStates }, () => resolve());
     });
     
-    // 5. ERST JETZT den Timer starten!
-    // Puffer auf 1000ms erhöht, um das Echo sicher abzufangen.
+    // 5. Sperre sicher aufheben
     localSaveTimeout = setTimeout(() => { 
         isLocalSaveInProgress = false; 
     }, 1000);
@@ -94,22 +95,19 @@ async function saveFolderStructure(structure) {
     return Promise.resolve();
 }
 
-/**
- * Der automatische Wächter für externe Änderungen.
- */
+// === WÄCHTER FÜR LIVE-UPDATES ===
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'sync' && !isLocalSaveInProgress) {
         
-        // NEU: Zeitstempel-Abgleich. Nur neuere Signale aktivieren das Banner.
+        // Banner-Logik OHNE das restliche Skript zu blockieren (kein hartes 'return' mehr!)
         if (changes.gemini_remote_update_trigger) {
             const triggerTime = changes.gemini_remote_update_trigger.newValue;
             if (triggerTime && triggerTime > scriptInitTime) {
-                console.log("Gemini Exporter: Elementare externe Änderung erkannt. Zeige Banner.");
                 showExternalUpdateBanner();
-                return; 
             }
         }
 
+        // Hartes Prüfen, ob Ordner oder Chats verändert (oder gelöscht) wurden
         let structureChanged = false;
         for (let key in changes) {
             if (key.startsWith('folder_') || key === 'gemini_folder_metadata') {
@@ -119,7 +117,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         }
 
         if (structureChanged) {
-            console.log("Gemini Exporter: Externe Cloud-Änderung erkannt! Aktualisiere UI...");
+            console.log("Gemini Exporter: Cloud-Änderung erkannt. UI wird synchronisiert.");
             renderInitialFolders().then(() => {
                 syncFullListOrder();
             });

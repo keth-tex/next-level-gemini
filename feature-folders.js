@@ -201,7 +201,7 @@ async function prepareFoldersAndStartSync() {
     folder.isOpen = false;
   });
 
-  await saveFolderStructure(structure);
+  await saveLocalFolderStates(structure);
 
   // Render headers
   renderInitialFolders();
@@ -405,7 +405,7 @@ async function toggleFolder(folderId) {
   if (!folder) return;
 
   folder.isOpen = !folder.isOpen;
-  await saveFolderStructure(structure);
+  await saveLocalFolderStates(structure);
 
   const folderHeader = document.querySelector(`.folder-header[data-folder-id="${folderId}"]`);
   if (folderHeader) {
@@ -519,7 +519,7 @@ async function revealContainer() {
       });
 
       if (changed) {
-        await saveFolderStructure(structure);
+        await saveLocalFolderStates(structure);
       }
       originalFolderState.clear();
     }
