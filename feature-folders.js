@@ -49,6 +49,17 @@ function extractChatIdFromElement(chatEl) {
  * für schnelles Abbrechen bei Folgeaufrufen. Ein manueller Abbruch ist jederzeit möglich.
  */
 async function preloadAllChats() {
+  // Sidebar-Status prüfen und ggf. nativ öffnen
+  const chatApp = document.querySelector('chat-app');
+  const isCollapsed = chatApp && !chatApp.classList.contains('side-nav-open');
+
+  if (isCollapsed) {
+      const menuBtn = document.querySelector('.side-nav-menu-button button') || document.querySelector('button[aria-label="Hauptmenü"]') || document.querySelector('button[aria-label="Main menu"]');
+      if (menuBtn) {
+          menuBtn.click();
+      }
+  }
+
   const structure = await getFolderStructure();
   let expectedChatCount = 0;
 
