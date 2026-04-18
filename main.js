@@ -196,6 +196,12 @@ const googleToastObserver = new MutationObserver((mutationsList) => {
                             if (typeof triggerExternalUpdate === 'function') {
                                 triggerExternalUpdate();
                             }
+                        } else if (text.includes('gelöscht') || text.includes('deleted')) {
+                            // Reagiert auf die Bestätigung einer erfolgreichen Löschung
+                            console.log("Gemini Exporter: Lösch-Bestätigung in Snack-Bar erkannt:", text.trim());
+                            if (typeof executeConfirmedDeletion === 'function') {
+                                executeConfirmedDeletion();
+                            }
                         }
                     }
                 }

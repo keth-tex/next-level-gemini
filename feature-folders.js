@@ -873,8 +873,11 @@ async function removeDeletedChatFromDB(chatId) {
 }
 
 // === DELETION LISTENER ===
+// Merkt sich die ID des Chats, der gelöscht werden soll
+window.pendingGeminiDeleteId = null;
+
 // Lauscht auf Klicks auf den Bestätigungs-Button beim Löschen eines Chats
-document.addEventListener('click', async (event) => {
+document.addEventListener('click', (event) => {
   // Prüfen, ob der Klick auf oder in dem gesuchten Button stattfand
   const confirmBtn = event.target.closest('button[data-test-id="confirm-button"]');
   if (!confirmBtn) return;
@@ -885,10 +888,16 @@ document.addEventListener('click', async (event) => {
   // Die Chat-ID aus dem jslog-String extrahieren
   const match = jslog.match(/"(c_[a-f0-9]+)"/);
   if (match && match[1]) {
-    const chatId = match[1];
-    console.log(`Gemini Exporter: Löschen von Chat ${chatId} bestätigt.`);
-    
-    // Den Chat aus unserer lokalen Ordner-Datenbank entfernen
-    await removeDeletedChatFromDB(chatId);
+    window.pendingGeminiDeleteId = match[1];
+    console.log(`Gemini Exporter: Lösch-Auftrag für Chat ${window.pendingGeminiDeleteId} registriert. Warte auf Server-Bestätigung...`);
   }
 });
+
+// Wird von main.js aufgerufen, sobald der Google-Toast die Löschung bestätigt
+async function executeConfirmedDeletion() {
+  if (window.pendingGeminiDeleteId) {
+    console.log(`Gemini Exporter: Löschen von Server bestätigt. Datenbank wird aktualisiert.`);
+    await removeDeletedChatFromDB(window.pendingGeminiDeleteId);
+    window.pendingGeminiDeleteId = null;
+  }
+}
