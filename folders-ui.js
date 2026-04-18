@@ -20,7 +20,7 @@
 function createGenericSidebarButton(id, iconName, label, extraClasses = '', onClick = null) {
   // 1. Wrapper Component
   const wrapper = document.createElement('side-nav-action-button');
-  wrapper.className = 'ia-redesign ng-star-inserted';
+  wrapper.className = 'ia-redesign ng-star-inserted gemini-custom-sidebar-btn';
 
   // 2. Button Element
   const button = document.createElement('button');
@@ -91,6 +91,34 @@ function createFolderButton() {
     'new-folder-button',
     handleNewFolderClick
   );
+}
+
+/**
+ * Injiziert den Export-Button blind in die Seitenleiste.
+ * Die korrekte Sortierung in die Mitte übernimmt ausschließlich die CSS-Datei.
+ */
+function injectDatabaseExportButton() {
+    const actionList = document.querySelector('mat-action-list.desktop-controls');
+    if (!actionList || document.getElementById('gemini-db-export-button')) return;
+
+    const wasModifying = window.isGeminiModifyingDOM;
+    window.isGeminiModifyingDOM = true;
+
+    try {
+        const exportBtnWrapper = createGenericSidebarButton(
+            'gemini-db-export-button',
+            'database',
+            'Datenbank exportieren',
+            'new-folder-button', // Erbt 100% des Ordner-Pillen-Stylings
+            handleExportDatabase
+        );
+
+        // Wir werfen den Button einfach ans Ende der Liste.
+        // Die CSS Flexbox-Regel (order: 2) platziert ihn optisch sofort an die richtige Stelle.
+        actionList.appendChild(exportBtnWrapper);
+    } finally {
+        window.isGeminiModifyingDOM = wasModifying;
+    }
 }
 
 function renderSingleFolder(folder, index, totalFolders, parentColor = null) {

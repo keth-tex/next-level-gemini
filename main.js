@@ -150,6 +150,16 @@ function injectionLogic() {
     console.error("Error injecting folder button:", e);
   }
 
+  // 3.5. Database Export Button
+  try {
+    const conversationContainer = document.querySelector('.conversations-container');
+    if (conversationContainer && typeof injectDatabaseExportButton === 'function') {
+      injectDatabaseExportButton();
+    }
+  } catch (e) {
+    console.error("Error injecting database export button:", e);
+  }
+
   // 4. Table of Contents (TOC)
   try {
     // Nur feuern, wenn der Container da ist, aber TOC noch fehlt

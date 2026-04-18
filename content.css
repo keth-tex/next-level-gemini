@@ -212,18 +212,20 @@ body.gemini-toc-closed {
    4. LAYOUT, SPACING & MARGINS
    ========================================================================== */
 
-.overflow-container > mat-action-list > :first-child { /*.explore-gems-container*/
+side-nav-action-button:has(#new-folder-button),
+side-nav-action-button:has(#gemini-db-export-button) {
   margin-bottom: 18px !important;
 }
 
-.overflow-container > mat-action-list > :nth-child(2) { /*.explore-gems-container*/
-  margin-bottom: 24px !important;
-}
-
 #new-folder-button,
+#gemini-db-export-button,
 #gemini-toc-toggle-button {
   margin-left: 12px !important;
   width: calc(100% - 24px) !important;
+}
+
+side-nav-action-button:has(#gemini-toc-toggle-button) {
+  margin-bottom: 24px !important;
 }
 
 /* Native Element Tweaks */
@@ -1401,4 +1403,37 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 /* 2. Die innere Pille MUSS transparent werden, damit die DnD-Farbe vollflächig durchscheint */
 .folder-header.gemini-drag-over .folder-info {
   background-color: transparent !important;
+}
+
+mat-action-list.top-action-list {
+  margin-bottom: 16px !important;
+}
+
+/* ==========================================================================
+   FLEXBOX SORTIERUNG FÜR SIDEBAR-BUTTONS
+   ========================================================================== */
+
+/* Zwingt die Liste in ein Flex-Layout für absolute Sortier-Kontrolle */
+mat-action-list.desktop-controls {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Schiebt alle nativen Google-Buttons (Hilfe, Aktivität, Settings) nach unten */
+mat-action-list.desktop-controls > * {
+  order: 99;
+}
+
+/* Nagelt unsere Buttons in die exakte Reihenfolge */
+side-nav-action-button:has(#new-folder-button) { 
+  order: 1 !important; 
+}
+
+side-nav-action-button:has(#gemini-db-export-button) { 
+  order: 2 !important;
+  margin-bottom: 32px !important;
+}
+
+side-nav-action-button:has(#gemini-toc-toggle-button) { 
+  order: 3 !important;
 }

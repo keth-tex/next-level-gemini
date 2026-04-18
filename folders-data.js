@@ -296,3 +296,65 @@ function triggerExternalUpdate() {
         localSaveTimeout = setTimeout(() => { isLocalSaveInProgress = false; }, 1000);
     });
 }
+
+/**
+ * Exportiert die gesamten Datenbanken sowie eine Mapping-Tabelle
+ * für Chat-IDs zu Chat-Titeln und Folder-IDs zu Folder-Namen.
+ */
+async function handleExportDatabase() {
+    // 1. Daten aus beiden Speichern abrufen
+    const syncData = await new Promise(resolve => chrome.storage.sync.get(null, resolve));
+    const localData = await new Promise(resolve => chrome.storage.local.get('gemini_folder_states', resolve));
+
+    // 2. Mapping-Tabellen vorbereiten
+    const mapping = {
+        folders: {},
+        chats: {}
+    };
+
+    // 3. Ordner-Mapping aus den Metadaten auslesen
+    if (syncData.gemini_folder_metadata) {
+        syncData.gemini_folder_metadata.forEach(folder => {
+            mapping.folders[folder.id] = folder.name;
+        });
+    }
+
+    // 4. Chat-Mapping aus dem DOM extrahieren
+    // Da das Skript beim Start alle Chats vorlädt, sind diese im DOM (auch wenn sie zugeklappt sind).
+    const chatElements = document.querySelectorAll('.conversation-items-container');
+    chatElements.forEach(chatEl => {
+        const chatId = chatEl.dataset.chatId;
+        const titleEl = chatEl.querySelector('.conversation-title');
+        if (chatId && titleEl) {
+            mapping.chats[chatId] = titleEl.textContent.trim();
+        }
+    });
+
+    // 5. Export-Objekt zusammenbauen
+    const exportObject = {
+        exportDate: new Date().toISOString(),
+        mapping: mapping,
+        storage: {
+            sync: syncData,
+            local: localData
+        }
+    };
+
+    // 6. JSON-Datei generieren und Download anstoßen
+    const jsonString = JSON.stringify(exportObject, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = url;
+    downloadAnchor.download = `gemini-database-export-${new Date().toISOString().split('T')[0]}.json`;
+    
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    
+    // Aufräumen
+    setTimeout(() => {
+        document.body.removeChild(downloadAnchor);
+        URL.revokeObjectURL(url);
+    }, 100);
+}
