@@ -14,7 +14,13 @@
             pointer-events: none !important;
         }
 
-        #new-folder-button-wrapper,
+        side-nav-action-button,
+        .side-nav-menu-button,
+        search-nav-button,
+        .top-action-list,
+        .desktop-controls,
+        location-footer,
+        .gemini-custom-sidebar-btn,
         .pin-icon-container,
         conversation-pin-icon {
             display: none !important;
