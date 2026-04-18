@@ -30,12 +30,23 @@ const FOLDER_COLORS = [
   '#8BC34A', '#CDDC39', '#9E9E9E', '#607D8B', '#FFFFFF'  
 ];
 
+// Hilfsfunktion zum sicheren Auslesen der Chat-ID direkt aus dem DOM-Element
+function extractChatIdFromElement(chatEl) {
+    if (chatEl.dataset.chatId) return chatEl.dataset.chatId;
+    const conversationEl = chatEl.querySelector('[data-test-id="conversation"]');
+    if (conversationEl && conversationEl.hasAttribute('jslog')) {
+        const match = conversationEl.getAttribute('jslog').match(/"(c_[a-f0-9]+)"/);
+        if (match && match[1]) return match[1];
+    }
+    return null;
+}
+
 // === INITIALIZATION AND CONTROL ===
 
 /**
  * Phase 1: Asynchrones, ereignisgesteuertes Pre-Loading aller Chats.
- * Nutzt die synchronisierte Datenbank und die Ziel-ID als exakte Abbruchkriterien.
- * Ein Notfall-Timeout dient als absolute Sicherung.
+ * Nutzt den 10-Sekunden-Idle-Timer bei Erstnutzung, merkt sich danach den ältesten Chat
+ * für schnelles Abbrechen bei Folgeaufrufen. Ein manueller Abbruch ist jederzeit möglich.
  */
 async function preloadAllChats() {
   const structure = await getFolderStructure();
@@ -49,8 +60,9 @@ async function preloadAllChats() {
     });
   }
 
-  // Die ID deines ältesten Chats für den sofortigen Abbruch (Targeting)
-  const TARGET_OLDEST_CHAT_ID = "c_5fe2ee1128772cab";
+  // Ziel-ID des ältesten Chats aus dem Sync-Storage laden
+  const syncData = await new Promise(resolve => chrome.storage.sync.get(['gemini_oldest_chat_id'], resolve));
+  const TARGET_OLDEST_CHAT_ID = syncData.gemini_oldest_chat_id || null;
 
   return new Promise((resolve) => {
     // Zielgenauer Selektor, der das Haupt-Chatfenster ausschließt
@@ -103,9 +115,27 @@ async function preloadAllChats() {
     progressText.style.fontSize = '14px';
     progressText.innerText = `Lade Chats … (0 / ${expectedChatCount})`;
 
+    const abortBtn = document.createElement('button');
+    abortBtn.innerText = "Abbrechen";
+    abortBtn.style.cssText = `
+      margin-top: 24px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+    `;
+    abortBtn.addEventListener('click', () => {
+        finishPreloading("Manuell abgebrochen", false);
+    });
+
     progressBarContainer.appendChild(progressBar);
     progressOverlay.appendChild(progressBarContainer);
     progressOverlay.appendChild(progressText);
+    progressOverlay.appendChild(abortBtn);
     
     const sidenav = document.querySelector('bard-sidenav');
     if (sidenav) {
@@ -114,17 +144,72 @@ async function preloadAllChats() {
     }
 
     let isScrollingLocked = false; 
+    let lastChatCount = 0;
+    let idleTimer = null;
 
-    const emergencyResolve = setTimeout(() => {
-      finishPreloading("Notfall-Timeout erreicht");
-    }, 30000);
+    const resetIdleTimer = () => {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+            finishPreloading("10-Sekunden-Idle erreicht", true);
+        }, 10000);
+    };
 
-    function finishPreloading(reason) {
-      clearTimeout(emergencyResolve);
+    // Initiale Timer-Aktivierung
+    resetIdleTimer();
+
+    async function cleanupOrphanedChats(domChatElements) {
+        const domChatIds = new Set();
+        domChatElements.forEach(el => {
+            const id = extractChatIdFromElement(el);
+            if (id) domChatIds.add(id);
+        });
+
+        let currentStructure = await getFolderStructure();
+        let changed = false;
+
+        currentStructure.forEach(folder => {
+            if (Array.isArray(folder.chatIds)) {
+                const originalLen = folder.chatIds.length;
+                folder.chatIds = folder.chatIds.filter(id => domChatIds.has(id));
+                if (folder.chatIds.length !== originalLen) {
+                    changed = true;
+                }
+            }
+        });
+
+        if (changed) {
+            console.log("Gemini Exporter: Verwaiste Chats in der Datenbank bereinigt.");
+            await saveFolderStructure(currentStructure);
+        }
+    }
+
+    async function finishPreloading(reason, isComplete) {
+      if (idleTimer) clearTimeout(idleTimer);
       if (observer) observer.disconnect();
       if (progressOverlay) progressOverlay.remove();
       
-      console.log(`Gemini Exporter: Pre-Loading abgeschlossen (${reason}).`);
+      console.log(`Gemini Exporter: Pre-Loading abgeschlossen (${reason}). Status: ${isComplete ? 'Vollständig' : 'Abgebrochen'}`);
+      
+      // Zustand lokal sichern
+      await new Promise(res => chrome.storage.local.set({ gemini_preload_complete: isComplete }, res));
+
+      if (isComplete) {
+          const allChatEls = Array.from(document.querySelectorAll('.conversation-items-container'));
+          if (allChatEls.length > 0) {
+              const oldestEl = allChatEls[allChatEls.length - 1];
+              const oldestId = extractChatIdFromElement(oldestEl);
+              
+              if (oldestId) {
+                  await new Promise(res => chrome.storage.sync.set({ gemini_oldest_chat_id: oldestId }, res));
+              }
+          }
+
+          // Abgleich und Bereinigung der Sync-Daten, falls das Ziel direkt erreicht wurde
+          if (TARGET_OLDEST_CHAT_ID && reason === "Ziel-Chat gefunden") {
+              await cleanupOrphanedChats(allChatEls);
+          }
+      }
+
       scroller.scrollTop = 0; 
       resolve();
     }
@@ -132,6 +217,12 @@ async function preloadAllChats() {
     function updateProgress() {
       const currentChats = document.querySelectorAll('.conversation-items-container').length;
       
+      // Zurücksetzen des Idle-Timers bei Zuwachs
+      if (currentChats !== lastChatCount) {
+          lastChatCount = currentChats;
+          resetIdleTimer();
+      }
+
       if (expectedChatCount > 0) {
         console.log(`expectedChatCount: ${expectedChatCount}`);
         console.log(`currentChats: ${currentChats}`);
@@ -142,22 +233,22 @@ async function preloadAllChats() {
         progressText.innerText = `Lade Chats … (${currentChats})`;
       }
 
-      // Abbruchbedingung 2: Gesamte Anzahl aus der Datenbank erreicht
-      if (expectedChatCount > 0 && currentChats >= expectedChatCount) {
-          finishPreloading("Erwartete Chat-Anzahl erreicht");
-          return true;
-      }
+      // Abbruchbedingung: Gesamte Anzahl aus der Datenbank erreicht
+      // if (expectedChatCount > 0 && currentChats >= expectedChatCount) {
+          // finishPreloading("Erwartete Chat-Anzahl erreicht", true);
+          // return true;
+      // }
 
-      // Abbruchbedingung 1: Ziel-Chat über jslog gefunden
-      if (document.querySelector(`[jslog*="${TARGET_OLDEST_CHAT_ID}"]`)) {
-          finishPreloading(`Ziel-Chat gefunden`);
+      // Abbruchbedingung: Gespeicherter ältester Chat wurde gefunden
+      if (TARGET_OLDEST_CHAT_ID && document.querySelector(`[jslog*="${TARGET_OLDEST_CHAT_ID}"]`)) {
+          finishPreloading(`Ziel-Chat gefunden`, true);
           return true;
       }
 
       return false;
     }
 
-    // Neue Hilfsfunktion für gedrosseltes Scrollen (Throttling)
+    // Hilfsfunktion für gedrosseltes Scrollen (Throttling)
     function triggerNextScroll() {
       if (isScrollingLocked) return;
       isScrollingLocked = true;
@@ -846,6 +937,8 @@ async function moveChatToFolder(chatId, newFolderId) {
 
 /**
  * Entfernt die ID eines gelöschten Chats aus dem jeweiligen Ordner.
+ * Prüft zudem, ob der gelöschte Chat der älteste war, und leitet entsprechende
+ * Resets für das Preloading ein.
  */
 async function removeDeletedChatFromDB(chatId) {
   let structure = await getFolderStructure();
@@ -869,6 +962,36 @@ async function removeDeletedChatFromDB(chatId) {
 
       await saveFolderStructure(structure);
       console.log(`Gemini Exporter: Gelöschter Chat ${chatId} aus der Datenbank entfernt.`);
+  }
+
+  // Preloading Fallback-Logik beim Löschen des referenzierten ältesten Chats
+  const syncData = await new Promise(res => chrome.storage.sync.get(['gemini_oldest_chat_id'], res));
+  if (syncData.gemini_oldest_chat_id === chatId) {
+      const localData = await new Promise(res => chrome.storage.local.get(['gemini_preload_complete'], res));
+      if (localData.gemini_preload_complete) {
+          const allChatEls = Array.from(document.querySelectorAll('.conversation-items-container'));
+          let newOldestId = null;
+          
+          // Wir suchen den letzten Chat, der NICHT der aktuell gelöschte ist
+          for (let i = allChatEls.length - 1; i >= 0; i--) {
+              const id = extractChatIdFromElement(allChatEls[i]);
+              if (id && id !== chatId) {
+                  newOldestId = id;
+                  break;
+              }
+          }
+          
+          if (newOldestId) {
+              await new Promise(res => chrome.storage.sync.set({ gemini_oldest_chat_id: newOldestId }, res));
+              console.log(`Gemini Exporter: Ältester Chat in der Referenz aktualisiert auf ${newOldestId}`);
+          } else {
+              await new Promise(res => chrome.storage.sync.remove('gemini_oldest_chat_id', res));
+          }
+      } else {
+          // Preloading war abgebrochen -> Wir entfernen die ID, um wieder den Idle-Timer zu triggern
+          await new Promise(res => chrome.storage.sync.remove('gemini_oldest_chat_id', res));
+          console.log("Gemini Exporter: Preloading war unvollständig. gemini_oldest_chat_id entfernt.");
+      }
   }
 }
 
