@@ -23,7 +23,7 @@ function waitForGoogleLazyLoad() {
     const maxEmptyChecks = 6; // Nach ~1,2 Sekunden ohne Spinner ist die Liste komplett
 
     const checkInterval = setInterval(() => {
-       const spinner = document.querySelector('.loading-history-spinner-container, mat-progress-spinner');
+       const spinner = document.querySelector(GeminiDOM.loadingSpinner);
        
        if (spinner) {
            emptyChecks = 0; // Spinner ist aktiv
@@ -45,7 +45,7 @@ function injectionLogic() {
 
   // 1. Export Button Logic
   try {
-    const reliableElement = document.querySelector('div[data-test-id="pillbox"]');
+    const reliableElement = document.querySelector(GeminiDOM.pillbox);
     const buttonWrapper = document.getElementById('gemini-tex-export-button-wrapper');
     const mainContainer = reliableElement ? reliableElement.parentElement : null;
 
@@ -60,7 +60,7 @@ function injectionLogic() {
 
   // 2. Sidebar Resizer Logic
   try {
-    const sidebarEl = document.querySelector('bard-sidenav');
+    const sidebarEl = document.querySelector(GeminiDOM.sideNav);
     const resizerEl = document.getElementById('gemini-sidebar-resizer');
 
     if (sidebarEl) {
@@ -88,7 +88,7 @@ function injectionLogic() {
 
   // 3. Folder Button & Logic
   try {
-    const conversationContainer = document.querySelector('.conversations-container');
+    const conversationContainer = document.querySelector(GeminiDOM.conversationsContainer);
     
     if (conversationContainer) {
       if (!isObservingChats) {
@@ -97,7 +97,7 @@ function injectionLogic() {
         conversationContainer.style.display = 'flex';
         conversationContainer.style.flexDirection = 'column';
         
-        const bardSidenav = document.querySelector('bard-sidenav');
+        const bardSidenav = document.querySelector(GeminiDOM.sideNav);
         if (bardSidenav) {
           bardSidenav.addEventListener('dragenter', (e) => { if (e.dataTransfer.types.includes("text/gemini-chat-id")) e.preventDefault(); });
           bardSidenav.addEventListener('dragover', (e) => { 
@@ -152,7 +152,7 @@ function injectionLogic() {
 
   // 3.5. Database Export Button
   try {
-    const conversationContainer = document.querySelector('.conversations-container');
+    const conversationContainer = document.querySelector(GeminiDOM.conversationsContainer);
     if (conversationContainer && typeof injectDatabaseExportButton === 'function') {
       injectDatabaseExportButton();
     }
@@ -163,7 +163,7 @@ function injectionLogic() {
   // 4. Table of Contents (TOC)
   try {
     // Nur feuern, wenn der Container da ist, aber TOC noch fehlt
-    if (document.querySelector('bard-sidenav-container') && typeof initTOC === 'function') {
+    if (document.querySelector(GeminiDOM.sideNavContainer) && typeof initTOC === 'function') {
         // initTOC hat intern eigene Checks, daher sicher aufzurufen
         initTOC();
     }
@@ -190,9 +190,9 @@ const googleToastObserver = new MutationObserver((mutationsList) => {
                 if (node.nodeType === 1) {
                     
                     // Suchen nach dem spezifischen Angular Material Snack-Bar Container
-                    const snackbar = (node.matches && node.matches('mat-snack-bar-container')) 
+                    const snackbar = (node.matches && node.matches(GeminiDOM.snackBar)) 
                                      ? node 
-                                     : (node.querySelector ? node.querySelector('mat-snack-bar-container') : null);
+                                     : (node.querySelector ? node.querySelector(GeminiDOM.snackBar) : null);
 
                     if (snackbar && snackbar.textContent) {
                         const text = snackbar.textContent.toLowerCase();

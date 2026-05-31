@@ -14,10 +14,10 @@ let scrollSpyObserver = null;
 // Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
 const TOC_TOGGLE_BUTTON_ID = 'gemini-toc-toggle-button';
-const TOC_CHAT_SCROLLER_SELECTOR = 'infinite-scroller.chat-history';
-const TOC_CONVERSATION_BLOCK_SELECTOR = '.conversation-container';
-const TOC_PROMPT_SELECTOR = '.query-text';
-const SIDEBAR_ACTION_LIST_SELECTOR = 'mat-action-list.desktop-controls';
+const TOC_CHAT_SCROLLER_SELECTOR = GeminiDOM.chatHistoryScroller;
+const TOC_CONVERSATION_BLOCK_SELECTOR = GeminiDOM.conversationBlock;
+const TOC_PROMPT_SELECTOR = GeminiDOM.queryText;
+const SIDEBAR_ACTION_LIST_SELECTOR = GeminiDOM.desktopControlsList;
 
 const TOC_MIN_WIDTH = 200;
 const TOC_MAX_WIDTH = 10000; // Limit removed (effectively)
@@ -106,8 +106,8 @@ function waitForElement(selector, callback) {
 function injectTOCContainer() {
   if (document.getElementById(TOC_CONTAINER_ID)) return;
 
-  const sidenavContainer = document.querySelector('bard-sidenav-container');
-  const sidenavContent = document.querySelector('bard-sidenav-content');
+  const sidenavContainer = document.querySelector(GeminiDOM.sideNavContainer);
+  const sidenavContent = document.querySelector(GeminiDOM.sideNavContent);
 
   if (sidenavContainer && sidenavContent) {
     const tocContainer = document.createElement('div');
@@ -236,7 +236,7 @@ function updateTOC() {
   if (!tocList) return;
 
   // Select blocks, including pending ones (to filter them)
-  const blocks = document.querySelectorAll(`${TOC_CONVERSATION_BLOCK_SELECTOR}, pending-request`);
+  const blocks = document.querySelectorAll(`${TOC_CONVERSATION_BLOCK_SELECTOR}, ${GeminiDOM.pendingRequest}`);
   
   // 1a. Gather current data using the robust text reconstructor
   const currentData = [];
@@ -398,7 +398,7 @@ function syncTOCWidthToNav(e) {
   // This deprecated function is kept for reference but not used in dblclick anymore.
   // See handleTOCResizeDblClick below.
   e.preventDefault();
-  const nav = document.querySelector('bard-sidenav');
+  const nav = document.querySelector(GeminiDOM.sideNav);
   if (nav) {
     const currentNavWidth = nav.getBoundingClientRect().width;
     document.documentElement.style.setProperty('--gemini-toc-width', currentNavWidth + 'px');
@@ -450,7 +450,7 @@ function handleTOCResizeDblClick(e) {
 
   } else {
       // Logic B: Sync with Navigation Sidebar (Original Behavior) if only text (which wraps)
-      const nav = document.querySelector('bard-sidenav');
+      const nav = document.querySelector(GeminiDOM.sideNav);
       if (nav) {
         const currentNavWidth = nav.getBoundingClientRect().width;
         document.documentElement.style.setProperty('--gemini-toc-width', currentNavWidth + 'px');

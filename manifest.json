@@ -22,9 +22,10 @@
       "matches": ["https://gemini.google.com/*"],
       "js": [
         "highlight.pack.js",
-        "feature-prompt-markdown.js",
         "turndown.js",
         "turndown-plugin-gfm.js",
+        "gemini-selectors.js",
+        "feature-prompt-markdown.js",
         "fouc-fix.js",
         "feature-export.js",
         "feature-resizer.js",

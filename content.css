@@ -212,8 +212,8 @@ body.gemini-toc-closed {
    4. LAYOUT, SPACING & MARGINS
    ========================================================================== */
 
-side-nav-action-button:has(#new-folder-button),
-side-nav-action-button:has(#gemini-db-export-button) {
+gem-nav-list-item:has(#new-folder-button),
+gem-nav-list-item:has(#gemini-db-export-button) {
   margin-bottom: 18px !important;
 }
 
@@ -224,7 +224,7 @@ side-nav-action-button:has(#gemini-db-export-button) {
   width: calc(100% - 24px) !important;
 }
 
-side-nav-action-button:has(#gemini-toc-toggle-button) {
+gem-nav-list-item:has(#gemini-toc-toggle-button) {
   margin-bottom: 24px !important;
 }
 
@@ -424,7 +424,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 }
 
 /* 7.3 Grid Animation (Chat List Roll-up) */
-.conversation-items-container {
+gem-nav-list-item[data-test-id="conversation"] {
   display: grid;
   grid-template-rows: 1fr;
   transition: grid-template-rows 0.3s ease-out, opacity 0.2s ease-in-out 0.1s;
@@ -432,7 +432,7 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
   overflow: hidden;
 }
 
-.conversation-items-container > * {
+gem-nav-list-item[data-test-id="conversation"] > * {
   transition: opacity 0.2s ease-in-out, visibility 0.2s, height 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out;
   visibility: visible;
   opacity: 1;
@@ -441,13 +441,13 @@ mat-drawer.mat-drawer-opened { transition: none !important; }
 }
 
 /* Collapsed State */
-.conversation-items-container.chat-item-rolled-up {
+gem-nav-list-item[data-test-id="conversation"].chat-item-rolled-up {
   grid-template-rows: 0fr !important;
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
-.conversation-items-container.chat-item-rolled-up > * {
+gem-nav-list-item[data-test-id="conversation"].chat-item-rolled-up > * {
   visibility: hidden !important; opacity: 0 !important; height: 0 !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important;
 }
 
@@ -476,17 +476,19 @@ top-bar-actions {
 /* ==========================================================================
    8. DRAG & DROP VISUALS
    ========================================================================== */
-.conversation-items-container.gemini-dragging { opacity: 0.5; }
+gem-nav-list-item[data-test-id="conversation"].gemini-dragging { 
+  opacity: 0.5; 
+}
 
 .folder-header.gemini-drag-over,
-.conversation-items-container.gemini-chat-drag-over {
+gem-nav-list-item[data-test-id="conversation"].gemini-chat-drag-over {
   border: none !important; outline: none !important;
   background-color: var(--gemini-bg-dnd-chat) !important;
   border-radius: var(--gemini-radius) !important;
 }
 
 .gemini-chat-is-dragging .folder-header > *,
-.gemini-chat-is-dragging .conversation-items-container > * {
+.gemini-chat-is-dragging gem-nav-list-item[data-test-id="conversation"] > * {
   pointer-events: none !important;
 }
 
@@ -1405,7 +1407,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   background-color: transparent !important;
 }
 
-mat-action-list.top-action-list {
+.top-action-list {
   margin-bottom: 16px !important;
 }
 
@@ -1425,15 +1427,15 @@ mat-action-list.desktop-controls > * {
 }
 
 /* Nagelt unsere Buttons in die exakte Reihenfolge */
-side-nav-action-button:has(#new-folder-button) { 
+gem-nav-list-item:has(#new-folder-button) { 
   order: 1 !important; 
 }
 
-side-nav-action-button:has(#gemini-db-export-button) { 
+gem-nav-list-item:has(#gemini-db-export-button) { 
   order: 2 !important;
   margin-bottom: 32px !important;
 }
 
-side-nav-action-button:has(#gemini-toc-toggle-button) { 
+gem-nav-list-item:has(#gemini-toc-toggle-button) { 
   order: 3 !important;
 }

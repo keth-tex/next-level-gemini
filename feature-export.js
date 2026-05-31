@@ -105,9 +105,9 @@ function scrapeAndSendConversation(event) {
   event.stopPropagation();
   console.log("Gemini LaTeX Export started...");
   const conversation = [];
-  const promptSelector = '.query-text';
-  const answerSelector = '.markdown-main-panel';
-  const blocks = document.querySelectorAll('.conversation-container');
+  const promptSelector = GeminiDOM.queryText;
+  const answerSelector = GeminiDOM.answerPanel;
+  const blocks = document.querySelectorAll(GeminiDOM.conversationBlock);
 
   if (blocks.length === 0) {
     console.error("Error: Could not find conversation blocks (e.g. '.conversation-container'). Check selectors.");
@@ -123,7 +123,7 @@ function scrapeAndSendConversation(event) {
       const answerElClone = answerEl.cloneNode(true);
       
       // Remove elements that shouldn't be in the export
-      const unwantedElements = answerElClone.querySelectorAll('.hide-from-message-actions');
+      const unwantedElements = answerElClone.querySelectorAll(GeminiDOM.hideFromActions);
       unwantedElements.forEach(el => el.remove());
       
       const answerHtml = answerElClone.innerHTML;

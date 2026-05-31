@@ -17,13 +17,13 @@ window.GeminiMarkdown = {
 };
 
 function renderMarkdownInPrompts() {
-  const queryContainers = document.querySelectorAll(`.query-text:not([${MARKDOWN_PROCESSED_ATTR}])`);
+  const queryContainers = document.querySelectorAll(`${GeminiDOM.queryText}:not([${MARKDOWN_PROCESSED_ATTR}])`);
 
   queryContainers.forEach(container => {
     container.setAttribute(MARKDOWN_PROCESSED_ATTR, 'true');
 
     // Hole alle Zeilen (meist <p> Tags)
-    const lines = Array.from(container.querySelectorAll('.query-text-line'));
+    const lines = Array.from(container.querySelectorAll(GeminiDOM.queryTextLine));
     if (lines.length === 0 && container.textContent.trim().length > 0) {
         // Fallback, falls keine query-text-line Struktur da ist (selten)
         lines.push(container); 

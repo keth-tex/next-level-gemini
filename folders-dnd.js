@@ -43,8 +43,57 @@ function handleDragStartChat(event) {
   event.dataTransfer.setData("text/gemini-chat-id", chatEl.dataset.chatId);
   event.dataTransfer.effectAllowed = "move";
 
-  // Verzögerung der DOM-Manipulationen via setTimeout (0ms), um das 
-  // synchrone Blockieren der nativen Browser-Drag-Engine zu vermeiden.
+  // Exakte Maße und Klick-Position des Originals berechnen
+  const rect = chatEl.getBoundingClientRect();
+  const offsetX = event.clientX - rect.left;
+  const offsetY = event.clientY - rect.top;
+
+  // Wir bauen ein sauberes, unabhängiges Ghost-Image auf
+  const dragGhost = document.createElement('div');
+  const titleEl = chatEl.querySelector('.title-text');
+  dragGhost.textContent = titleEl ? titleEl.textContent.trim() : "Chat";
+  
+  // Zwingend erforderlich: Die exakten Maße des Originals festnageln.
+  // Wir rendern das Ghost-Image per 'fixed' exakt hinter dem Original, 
+  // um Viewport-Clipping-Bugs beim Screenshot zu vermeiden.
+  dragGhost.style.cssText = `
+    position: fixed;
+    top: ${rect.top}px;
+    left: ${rect.left}px;
+    width: ${rect.width}px;
+    height: ${rect.height}px;
+    background: var(--gem-sys-color--surface, #1e1f20);
+    color: var(--gem-sys-color--on-surface, #e3e3e3);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    box-sizing: border-box;
+    font-family: 'Google Sans', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: -9999; /* Unsichtbar im Hintergrund */
+    pointer-events: none;
+  `;
+  
+  document.body.appendChild(dragGhost);
+  
+  if (event.dataTransfer.setDragImage) {
+      event.dataTransfer.setDragImage(dragGhost, offsetX, offsetY);
+  }
+
+  // Aufräumen nach dem Screenshot durch den Browser
+  setTimeout(() => {
+      if (dragGhost.parentNode) {
+          dragGhost.parentNode.removeChild(dragGhost);
+      }
+  }, 50);
+  // --------------------------------------------------
+
+  // Verzögerung der DOM-Manipulationen via setTimeout (0ms)
   setTimeout(() => {
     // Disable animations to prevent glitches
     chatEl.classList.add('gemini-dnd-no-transition');
@@ -54,7 +103,6 @@ function handleDragStartChat(event) {
 
     // Global Lock (prevents updates in feature-folders.js)
     document.documentElement.classList.add('gemini-chat-is-dragging');
-
     chatEl.classList.add('gemini-dragging');
   }, 0);
   
@@ -95,8 +143,17 @@ async function handleDropOnFolder(event) {
   // Visuelles Feedback sofort entfernen
   folderHeaderEl.classList.remove('gemini-drag-over');
 
-  const chatId = event.dataTransfer.getData("text/gemini-chat-id");
+  let chatId = event.dataTransfer.getData("text/gemini-chat-id");
   const newFolderId = folderHeaderEl.dataset.folderId;
+
+  // FALLBACK für neues DOM
+  if (!chatId) { // bzw. !draggedChatId
+      const urlData = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
+      if (urlData && urlData.includes('/app/')) {
+          const parts = urlData.split('/');
+          chatId = 'c_' + parts[parts.length - 1].split('?')[0];
+      }
+  }
 
   if (!chatId || !newFolderId) {
     console.warn("Gemini Exporter: Drop incomplete. Cleaning up.");
@@ -105,7 +162,7 @@ async function handleDropOnFolder(event) {
   }
 
   // 1. Visual Optimization: Hide chat immediately if target folder is closed
-  const chatEl = document.querySelector(`.conversation-items-container[data-chat-id="${chatId}"]`);
+  const chatEl = document.querySelector(`${GeminiDOM.conversationItemsContainer}[data-chat-id="${chatId}"]`);
   const isTargetFolderClosed = !folderHeaderEl.classList.contains('is-open');
 
   if (chatEl && isTargetFolderClosed) {
@@ -148,8 +205,17 @@ async function handleDropOnChat(event) {
   // Visuelles Feedback entfernen
   event.currentTarget.classList.remove('gemini-chat-drag-over');
 
-  const draggedChatId = event.dataTransfer.getData("text/gemini-chat-id");
+  let draggedChatId = event.dataTransfer.getData("text/gemini-chat-id");
   const targetChatId = event.currentTarget.dataset.chatId;
+
+  // FALLBACK für neues DOM
+  if (!draggedChatId) {
+      const urlData = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
+      if (urlData && urlData.includes('/app/')) {
+          const parts = urlData.split('/');
+          draggedChatId = parts[parts.length - 1].split('?')[0];
+      }
+  }
 
   if (!draggedChatId || !targetChatId || draggedChatId === targetChatId) {
     resetDnDState(); // Aufräumen bei Abbruch

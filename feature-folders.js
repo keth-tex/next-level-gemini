@@ -30,10 +30,21 @@ const FOLDER_COLORS = [
   '#8BC34A', '#CDDC39', '#9E9E9E', '#607D8B', '#FFFFFF'  
 ];
 
-// Hilfsfunktion zum sicheren Auslesen der Chat-ID direkt aus dem DOM-Element
+// Hilfsfunktion zum sicheren Auslesen der Chat-ID
 function extractChatIdFromElement(chatEl) {
     if (chatEl.dataset.chatId) return chatEl.dataset.chatId;
-    const conversationEl = chatEl.querySelector('[data-test-id="conversation"]');
+    
+    // In der neuen Struktur ist die ID direkt im href des <a>-Tags.
+    // WICHTIG: Wir hängen 'c_' davor, um die Kompatibilität zur Datenbank zu wahren!
+    const linkEl = chatEl.querySelector('a[href^="/app/"]');
+    if (linkEl) {
+        const urlParts = linkEl.getAttribute('href').split('/');
+        const rawId = urlParts[urlParts.length - 1].split('?')[0];
+        return 'c_' + rawId; 
+    }
+    
+    // Fallback für alte jslog-Struktur
+    const conversationEl = chatEl.querySelector('[jslog]');
     if (conversationEl && conversationEl.hasAttribute('jslog')) {
         const match = conversationEl.getAttribute('jslog').match(/"(c_[a-f0-9]+)"/);
         if (match && match[1]) return match[1];
@@ -50,11 +61,11 @@ function extractChatIdFromElement(chatEl) {
  */
 async function preloadAllChats() {
   // Sidebar-Status prüfen und ggf. nativ öffnen
-  const chatApp = document.querySelector('chat-app');
+  const chatApp = document.querySelector(GeminiDOM.app);
   const isCollapsed = chatApp && !chatApp.classList.contains('side-nav-open');
 
   if (isCollapsed) {
-      const menuBtn = document.querySelector('.side-nav-menu-button button') || document.querySelector('button[aria-label="Hauptmenü"]') || document.querySelector('button[aria-label="Main menu"]');
+      const menuBtn = document.querySelector(GeminiDOM.mainMenuBtn);
       if (menuBtn) {
           menuBtn.click();
       }
@@ -77,10 +88,7 @@ async function preloadAllChats() {
 
   return new Promise((resolve) => {
     // Zielgenauer Selektor, der das Haupt-Chatfenster ausschließt
-    const scroller = document.querySelector('.overflow-container infinite-scroller') || 
-                     document.querySelector('infinite-scroller:has(.loading-history-spinner-container)') ||
-                     document.querySelector('infinite-scroller:has(.conversation-items-container)') ||
-                     document.querySelector('bard-sidenav infinite-scroller');
+    const scroller = document.querySelector(GeminiDOM.chatHistoryScroller);
     
     if (!scroller) {
       console.log("Gemini Exporter: infinite-scroller nicht gefunden.");
@@ -148,7 +156,7 @@ async function preloadAllChats() {
     progressOverlay.appendChild(progressText);
     progressOverlay.appendChild(abortBtn);
     
-    const sidenav = document.querySelector('bard-sidenav');
+    const sidenav = document.querySelector(GeminiDOM.sideNav);
     if (sidenav) {
       sidenav.style.position = 'relative';
       sidenav.appendChild(progressOverlay);
@@ -205,7 +213,7 @@ async function preloadAllChats() {
       await new Promise(res => chrome.storage.local.set({ gemini_preload_complete: isComplete }, res));
 
       if (isComplete) {
-          const allChatEls = Array.from(document.querySelectorAll('.conversation-items-container'));
+          const allChatEls = Array.from(document.querySelectorAll(GeminiDOM.conversationItemsContainer));
           if (allChatEls.length > 0) {
               const oldestEl = allChatEls[allChatEls.length - 1];
               const oldestId = extractChatIdFromElement(oldestEl);
@@ -226,7 +234,7 @@ async function preloadAllChats() {
     }
 
     function updateProgress() {
-      const currentChats = document.querySelectorAll('.conversation-items-container').length;
+      const currentChats = document.querySelectorAll(GeminiDOM.conversationItemsContainer).length;
       
       // Zurücksetzen des Idle-Timers bei Zuwachs
       if (currentChats !== lastChatCount) {
@@ -250,8 +258,19 @@ async function preloadAllChats() {
           // return true;
       // }
 
+      // Wir müssen das "c_" für den DOM-Selektor entfernen, da Google im href nur die rohe ID nutzt
+      const rawTargetId = TARGET_OLDEST_CHAT_ID ? TARGET_OLDEST_CHAT_ID.replace(/^c_/, '') : null;
+
       // Abbruchbedingung: Gespeicherter ältester Chat wurde gefunden
-      if (TARGET_OLDEST_CHAT_ID && document.querySelector(`[jslog*="${TARGET_OLDEST_CHAT_ID}"]`)) {
+      if (rawTargetId && document.querySelector(`a[href$="${rawTargetId}"]`)) {
+          
+          // Self-Healing: Wenn wir extrem weit von der erwarteten Anzahl entfernt sind (< 90%),
+          // ist die gespeicherte ID vermutlich ein Überbleibsel aus einem früheren Absturz.
+          // if (expectedChatCount > 0 && currentChats < (expectedChatCount * 0.9)) {
+              // console.warn("Gemini Exporter: Falscher Ziel-Chat erkannt (zu wenig Chats geladen). Ignoriere Cache und lade weiter...");
+              // return false;
+          // }
+
           finishPreloading(`Ziel-Chat gefunden`, true);
           return true;
       }
@@ -312,7 +331,7 @@ async function prepareFoldersAndStartSync() {
   injectFolderButton();
 
   // Start Observer
-  const conversationContainer = document.querySelector('.conversations-container');
+  const conversationContainer = document.querySelector(GeminiDOM.conversationsContainer);
   if (conversationContainer) {
     chatObserver = new MutationObserver(handleChatListMutations);
     chatObserver.observe(conversationContainer, chatObserverConfig);
@@ -328,7 +347,7 @@ async function prepareFoldersAndStartSync() {
  */
 function injectFolderButton() {
   // Wait for the list to appear
-  const SIDEBAR_ACTION_LIST_SELECTOR = 'mat-action-list.desktop-controls';
+  const SIDEBAR_ACTION_LIST_SELECTOR = GeminiDOM.desktopControlsList;
   
   const waitForList = (selector, callback) => {
     const element = document.querySelector(selector);
@@ -402,7 +421,7 @@ async function handleNewFolderClick() {
 
   await saveFolderStructure(structure);
 
-  const container = document.querySelector('.conversations-container');
+  const container = document.querySelector(GeminiDOM.conversationsContainer);
   if (container) {
     const customFolders = structure.filter(f => !f.isDefault);
     const index = customFolders.findIndex(f => f.id === newFolder.id);
@@ -456,7 +475,7 @@ async function handleAddSubfolder(parentId) {
 
   await saveFolderStructure(structure);
   
-  const container = document.querySelector('.conversations-container');
+  const container = document.querySelector(GeminiDOM.conversationsContainer);
   if (container) {
     const customFolders = structure.filter(f => !f.isDefault);
     const index = customFolders.findIndex(f => f.id === newSubfolder.id);
@@ -473,7 +492,7 @@ async function handleAddSubfolder(parentId) {
     if (parentEl) {
         if (wasParentClosed) {
             parentEl.classList.add('is-open');
-            const childItems = document.querySelectorAll(`.conversations-container .conversation-items-container[data-folder-id="${parentId}"], .folder-header.is-subfolder[data-parent-id="${parentId}"]`);
+            const childItems = document.querySelectorAll(`${GeminiDOM.conversationsContainer} ${GeminiDOM.conversationItemsContainer}[data-folder-id="${parentId}"], .folder-header.is-subfolder[data-parent-id="${parentId}"]`);
             childItems.forEach(el => {
                el.classList.remove('chat-item-rolled-up');
                el.classList.remove('folder-rolled-up');
@@ -516,7 +535,7 @@ async function toggleFolder(folderId) {
   }
 
   const chatsInFolder = document.querySelectorAll(
-    `.conversations-container .conversation-items-container[data-folder-id="${folderId}"]`
+    `${GeminiDOM.conversationsContainer} ${GeminiDOM.conversationItemsContainer}[data-folder-id="${folderId}"]`
   );
 
   chatsInFolder.forEach(chatEl => {
@@ -534,12 +553,12 @@ async function toggleFolder(folderId) {
       if (folder.isOpen) {
           subHeader.classList.remove('folder-rolled-up'); // NEU: Animation entfernen
           if (subFolderData && subFolderData.isOpen) {
-              const subChats = document.querySelectorAll(`.conversations-container .conversation-items-container[data-folder-id="${subId}"]`);
+              const subChats = document.querySelectorAll(`${GeminiDOM.conversationsContainer} ${GeminiDOM.conversationItemsContainer}[data-folder-id="${subId}"]`);
               subChats.forEach(c => c.classList.remove('chat-item-rolled-up'));
           }
       } else {
           subHeader.classList.add('folder-rolled-up'); // NEU: Animation hinzufügen
-          const subChats = document.querySelectorAll(`.conversations-container .conversation-items-container[data-folder-id="${subId}"]`);
+          const subChats = document.querySelectorAll(`${GeminiDOM.conversationsContainer} ${GeminiDOM.conversationItemsContainer}[data-folder-id="${subId}"]`);
           subChats.forEach(c => c.classList.add('chat-item-rolled-up'));
       }
   });
@@ -553,7 +572,7 @@ async function renderInitialFolders() {
   if (typeof mainObserver !== 'undefined' && mainObserver) mainObserver.disconnect(); 
 
   const structure = await getFolderStructure();
-  const conversationContainer = document.querySelector('.conversations-container');
+  const conversationContainer = document.querySelector(GeminiDOM.conversationsContainer);
 
   if (!conversationContainer) {
     isRendering = false;
@@ -600,11 +619,11 @@ async function renderInitialFolders() {
 async function revealContainer() {
   if (isInitialSortComplete) return; // Already revealed
 
-  const container = document.querySelector('.conversations-container');
+  const container = document.querySelector(GeminiDOM.conversationsContainer);
   if (!container) return;
 
-  const hasChats = container.querySelector('.conversation-items-container');
-  const isEmpty = document.querySelector('.empty-state-container'); // Global check
+  const hasChats = container.querySelector(GeminiDOM.conversationItemsContainer);
+  const isEmpty = document.querySelector(GeminiDOM.emptyStateContainer); // Global check
 
   // Reveal only if there is content (chats or empty message)
   if (hasChats || isEmpty) {
@@ -633,7 +652,7 @@ async function revealContainer() {
 
     container.style.visibility = 'visible';
 
-    const sidenavContent = document.querySelector('bard-sidenav-content');
+    const sidenavContent = document.querySelector(GeminiDOM.sideNavContent);
     if (sidenavContent) sidenavContent.style.overflow = '';
 
     isInitialSortComplete = true;
@@ -659,12 +678,12 @@ async function syncFullListOrder() {
   const structure = await getFolderStructure();
   const { chatFolderMap, defaultFolderId } = await getChatFolderMap();
 
-  const container = document.querySelector('.conversations-container');
+  const container = document.querySelector(GeminiDOM.conversationsContainer);
   if (!container) {
     isRendering = false;
     return;
   }
-  const allChatItems = container.querySelectorAll('.conversation-items-container');
+  const allChatItems = container.querySelectorAll(GeminiDOM.conversationItemsContainer);
 
   const orderCounters = new Map();
   let baseOrder = 0;
@@ -723,25 +742,26 @@ async function syncFullListOrder() {
   });
 
   allChatItems.forEach(chatEl => {
-    let chatId = chatEl.dataset.chatId;
-    if (!chatId) {
-      const conversationEl = chatEl.querySelector('[data-test-id="conversation"]');
-      if (conversationEl && conversationEl.hasAttribute('jslog')) {
-        const jslog = conversationEl.getAttribute('jslog');
-        const match = jslog.match(/"(c_[a-f0-9]+)"/);
-        if (match && match[1]) {
-          chatId = match[1];
-          chatEl.dataset.chatId = chatId;
-        }
-      }
-    }
-    if (!chatId) {
-      chatEl.style.order = '99999';
-      return;
+    let chatId = extractChatIdFromElement(chatEl);
+    
+    if (chatId) {
+        // ID direkt ins Dataset schreiben, falls sie noch nicht dort steht
+        chatEl.dataset.chatId = chatId;
+    } else {
+        // Fallback: Wenn keine ID extrahierbar ist, Chat ans Ende sortieren
+        chatEl.style.order = '99999';
+        return;
     }
 
     if (!chatEl.hasAttribute('draggable')) {
       chatEl.setAttribute('draggable', 'true');
+      
+      // NEU: Verhindert, dass der native Link gezogen wird und den DataTransfer überschreibt
+      const linkEl = chatEl.querySelector('a');
+      if (linkEl) {
+          linkEl.setAttribute('draggable', 'false');
+      }
+
       chatEl.addEventListener('dragstart', handleDragStartChat);
       chatEl.addEventListener('dragover', handleDragOverChat);
       chatEl.addEventListener('dragleave', handleDragLeaveChat);
@@ -769,9 +789,6 @@ async function syncFullListOrder() {
       if (defaultFolder) {
         defaultFolder.chatIds.unshift(chatId);
         chatFolderMap.set(chatId, defaultFolderId);
-        if (typeof triggerExternalUpdate === 'function') {
-            triggerExternalUpdate();
-        }
         dbNeedsUpdate = true;
       }
     }
@@ -808,6 +825,9 @@ async function syncFullListOrder() {
 
   if (dbNeedsUpdate) {
     await saveFolderStructure(structure);
+    if (typeof triggerExternalUpdate === 'function') {
+        triggerExternalUpdate();
+    }
   }
 
   isRendering = false;
@@ -980,7 +1000,7 @@ async function removeDeletedChatFromDB(chatId) {
   if (syncData.gemini_oldest_chat_id === chatId) {
       const localData = await new Promise(res => chrome.storage.local.get(['gemini_preload_complete'], res));
       if (localData.gemini_preload_complete) {
-          const allChatEls = Array.from(document.querySelectorAll('.conversation-items-container'));
+          const allChatEls = Array.from(document.querySelectorAll(GeminiDOM.conversationItemsContainer));
           let newOldestId = null;
           
           // Wir suchen den letzten Chat, der NICHT der aktuell gelöschte ist
@@ -1006,32 +1026,44 @@ async function removeDeletedChatFromDB(chatId) {
   }
 }
 
-// === DELETION LISTENER ===
-// Merkt sich die ID des Chats, der gelöscht werden soll
-window.pendingGeminiDeleteId = null;
-
-// Lauscht auf Klicks auf den Bestätigungs-Button beim Löschen eines Chats
-document.addEventListener('click', (event) => {
-  // Prüfen, ob der Klick auf oder in dem gesuchten Button stattfand
-  const confirmBtn = event.target.closest('button[data-test-id="confirm-button"]');
-  if (!confirmBtn) return;
-
-  const jslog = confirmBtn.getAttribute('jslog');
-  if (!jslog) return;
-
-  // Die Chat-ID aus dem jslog-String extrahieren
-  const match = jslog.match(/"(c_[a-f0-9]+)"/);
-  if (match && match[1]) {
-    window.pendingGeminiDeleteId = match[1];
-    console.log(`Gemini Exporter: Lösch-Auftrag für Chat ${window.pendingGeminiDeleteId} registriert. Warte auf Server-Bestätigung...`);
-  }
-});
+// === DELETION LISTENER (DOM-ABGLEICH) ===
 
 // Wird von main.js aufgerufen, sobald der Google-Toast die Löschung bestätigt
-async function executeConfirmedDeletion() {
-  if (window.pendingGeminiDeleteId) {
-    console.log(`Gemini Exporter: Löschen von Server bestätigt. Datenbank wird aktualisiert.`);
-    await removeDeletedChatFromDB(window.pendingGeminiDeleteId);
-    window.pendingGeminiDeleteId = null;
-  }
+function executeConfirmedDeletion() {
+    console.log("Gemini Exporter: Lösch-Toast erkannt. Starte Abgleich mit der Datenbank...");
+
+    // Kurze Verzögerung, damit Google das Element vollständig aus dem DOM entfernen kann
+    setTimeout(async () => {
+        const currentChatEls = document.querySelectorAll(GeminiDOM.conversationItemsContainer);
+        const domChatIds = new Set();
+        
+        currentChatEls.forEach(el => {
+            const id = extractChatIdFromElement(el);
+            if (id) domChatIds.add(id);
+        });
+
+        const structure = await getFolderStructure();
+        const deletedIds = [];
+
+        // Abgleich: Welche ID steht noch in der Datenbank, fehlt aber jetzt im DOM?
+        structure.forEach(folder => {
+            if (Array.isArray(folder.chatIds)) {
+                folder.chatIds.forEach(id => {
+                    if (!domChatIds.has(id)) {
+                        deletedIds.push(id);
+                    }
+                });
+            }
+        });
+
+        if (deletedIds.length > 0) {
+            for (const id of deletedIds) {
+                console.log(`Gemini Exporter: Abgleich erfolgreich. Chat ${id} wird aus der Datenbank entfernt.`);
+                // Nutzt die bereits implementierte Funktion inkl. Fallback-Logik
+                await removeDeletedChatFromDB(id);
+            }
+        } else {
+            console.warn("Gemini Exporter: Konnte keinen fehlenden Chat beim Abgleich feststellen.");
+        }
+    }, 500);
 }

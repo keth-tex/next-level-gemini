@@ -18,30 +18,34 @@
  * </side-nav-action-button>
  */
 function createGenericSidebarButton(id, iconName, label, extraClasses = '', onClick = null) {
-  // 1. Wrapper Component
-  const wrapper = document.createElement('side-nav-action-button');
-  wrapper.className = 'ia-redesign ng-star-inserted gemini-custom-sidebar-btn';
+  // 1. Wrapper Component (Neues Element: gem-nav-list-item)
+  const wrapper = document.createElement('gem-nav-list-item');
+  wrapper.className = 'ng-star-inserted gemini-custom-sidebar-btn';
 
   // 2. Button Element
   const button = document.createElement('button');
   button.id = id;
-  // Exakte Klassen-Liste wie beim TOC Button
-  button.className = `mat-mdc-list-item mdc-list-item mat-ripple mat-mdc-tooltip-trigger side-nav-action-button explicit-gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line ${extraClasses}`;
+  button.className = `mat-mdc-list-item mdc-list-item mat-mdc-tooltip-trigger gem-nav-list-item gmat-override mat-mdc-list-item-interactive mdc-list-item--with-leading-icon mat-mdc-list-item-single-line mdc-list-item--with-one-line ${extraClasses}`;
   button.setAttribute('type', 'button');
   button.setAttribute('aria-label', label);
 
   // 3. Icon Container
   const iconContainer = document.createElement('div');
-  iconContainer.className = 'mat-mdc-list-item-icon icon-container explicit-gmat-override mdc-list-item__start';
+  iconContainer.className = 'mat-mdc-list-item-icon leading-icon-container mdc-list-item__start';
 
   // 4. Icon
+  const gemIcon = document.createElement('gem-icon');
+  gemIcon.className = 'gem-nav-list-item-icon ng-star-inserted';
+  
   const icon = document.createElement('mat-icon');
-  icon.className = 'mat-icon notranslate gds-icon-l google-symbols mat-ligature-font mat-icon-no-color';
+  icon.className = 'mat-icon notranslate lm-icon-m lumi-symbols mat-ligature-font mat-icon-no-color ng-star-inserted';
   icon.setAttribute('aria-hidden', 'true');
-  icon.setAttribute('data-mat-icon-type', 'font');
+  icon.setAttribute('data-mat-icon-name', iconName);
+  icon.setAttribute('data-mat-icon-namespace', 'lumi-symbols');
   icon.textContent = iconName;
 
-  iconContainer.appendChild(icon);
+  gemIcon.appendChild(icon);
+  iconContainer.appendChild(gemIcon);
 
   // 5. Content / Label
   const contentSpan = document.createElement('span');
@@ -49,13 +53,24 @@ function createGenericSidebarButton(id, iconName, label, extraClasses = '', onCl
 
   const unscopedSpan = document.createElement('span');
   unscopedSpan.className = 'mat-mdc-list-item-unscoped-content mdc-list-item__primary-text';
-  unscopedSpan.textContent = label;
+  
+  const labelBadge = document.createElement('span');
+  labelBadge.className = 'label-and-badge ng-star-inserted';
+  
+  const titleSpan = document.createElement('span');
+  titleSpan.className = 'title-text gds-body-s';
+  titleSpan.textContent = label;
 
+  labelBadge.appendChild(titleSpan);
+  unscopedSpan.appendChild(labelBadge);
   contentSpan.appendChild(unscopedSpan);
 
   // --- NEU: Der Wrapper für das Pillen-Design ---
   const pillInner = document.createElement('div');
   pillInner.className = 'pill-btn-inner';
+  pillInner.style.display = 'flex';
+  pillInner.style.alignItems = 'center';
+  pillInner.style.width = '100%';
   pillInner.appendChild(iconContainer);
   pillInner.appendChild(contentSpan);
 
@@ -63,7 +78,7 @@ function createGenericSidebarButton(id, iconName, label, extraClasses = '', onCl
   const focusIndicator = document.createElement('div');
   focusIndicator.className = 'mat-focus-indicator';
 
-  // Assemble Button (Icon und Text stecken jetzt im pillInner)
+  // Assemble Button
   button.appendChild(pillInner);
   button.appendChild(focusIndicator);
 
@@ -98,7 +113,7 @@ function createFolderButton() {
  * Die korrekte Sortierung in die Mitte übernimmt ausschließlich die CSS-Datei.
  */
 function injectDatabaseExportButton() {
-    const actionList = document.querySelector('mat-action-list.desktop-controls');
+    const actionList = document.querySelector(GeminiDOM.desktopControlsList);
     if (!actionList || document.getElementById('gemini-db-export-button')) return;
 
     const wasModifying = window.isGeminiModifyingDOM;

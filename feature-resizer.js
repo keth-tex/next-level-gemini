@@ -75,7 +75,7 @@ const RESIZER_STANDARD_DIFF = 236;
 
 // Central helper to update Sidebar styles AND CSS Variables
 function updateSidebarStyle(width, sidebarEl = null) {
-  const el = sidebarEl || document.querySelector('bard-sidenav');
+  const el = sidebarEl || document.querySelector(GeminiDOM.sideNav);
   if (!el) return;
   
   // 1. Set Sidebar Width (Local - for Gemini)
@@ -126,7 +126,7 @@ function autoResizeSidebar(e) {
   const sidebarEl = e.target.parentElement;
   if (!sidebarEl) return;
 
-  const titles = sidebarEl.querySelectorAll('.conversation-title');
+  const titles = sidebarEl.querySelectorAll(GeminiDOM.conversationTitle);
   if (titles.length === 0) return;
 
   // Measure longest title

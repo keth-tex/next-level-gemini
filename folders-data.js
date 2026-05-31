@@ -319,10 +319,10 @@ async function handleExportDatabase() {
 
     // 4. Chat-Mapping aus dem DOM extrahieren
     // Da das Skript beim Start alle Chats vorlädt, sind diese im DOM (auch wenn sie zugeklappt sind).
-    const chatElements = document.querySelectorAll('.conversation-items-container');
+    const chatElements = document.querySelectorAll(GeminiDOM.conversationItemsContainer);
     chatElements.forEach(chatEl => {
         const chatId = chatEl.dataset.chatId;
-        const titleEl = chatEl.querySelector('.conversation-title');
+        const titleEl = chatEl.querySelector(GeminiDOM.conversationTitle);
         if (chatId && titleEl) {
             mapping.chats[chatId] = titleEl.textContent.trim();
         }
