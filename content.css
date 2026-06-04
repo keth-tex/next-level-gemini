@@ -166,7 +166,8 @@ body.gemini-toc-closed {
   position: relative;
   top: 1px;
   flex-grow: 1;
-  font-size: var(--mat-list-list-item-label-text-size) !important;
+  /* font-size: var(--mat-list-list-item-label-text-size) !important; */
+  font-size: 15px !important;
 }
 
 /* Folder Arrow Animation */
@@ -1268,13 +1269,13 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 /* Typografie für Unterordner anpassen */
 .folder-header.is-subfolder .folder-name {
-  font-size: 15px !important;
+  font-size: 14px !important;
   color: var(--gemini-text-variant) !important;
 }
 
 /* Schriftgröße und -dicke des Eingabefeldes in Unterordnern angleichen */
 .folder-header.is-subfolder .folder-name-input {
-  font-size: 15px !important;
+  font-size: 14px !important;
 }
 
 /* Das ausgefüllte Ordner-Symbol bei Unterordnern ausblenden */
@@ -1419,6 +1420,7 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 mat-action-list.desktop-controls {
   display: flex !important;
   flex-direction: column !important;
+  margin-top: 24px !important;
 }
 
 /* Schiebt alle nativen Google-Buttons (Hilfe, Aktivität, Settings) nach unten */
