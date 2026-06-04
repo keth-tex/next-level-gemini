@@ -14,7 +14,7 @@ let scrollSpyObserver = null;
 // Constants
 const TOC_CONTAINER_ID = 'gemini-toc-container';
 const TOC_TOGGLE_BUTTON_ID = 'gemini-toc-toggle-button';
-const TOC_CHAT_SCROLLER_SELECTOR = GeminiDOM.chatHistoryScroller;
+const TOC_CHAT_SCROLLER_SELECTOR = GeminiDOM.app;
 const TOC_CONVERSATION_BLOCK_SELECTOR = GeminiDOM.conversationBlock;
 const TOC_PROMPT_SELECTOR = GeminiDOM.queryText;
 const SIDEBAR_ACTION_LIST_SELECTOR = GeminiDOM.desktopControlsList;
@@ -292,7 +292,7 @@ function updateTOC() {
           }
       });
   }, {
-      root: currentScrollElement,
+      root: null,
       rootMargin: '-50% 0px -50% 0px',
       threshold: 0
   });
