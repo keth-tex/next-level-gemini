@@ -30,7 +30,7 @@
   --gemini-toc-width:             308px; /* Updated via JS */
   --gemini-sidenav-diff:          236px;
   --gemini-switcher-offset:       var(--gemini-sidenav-diff);
-  --gemini-current-sidebar-width: var(--bard-sidenav-open-width, 308px);
+  --gemini-current-sidebar-width: var(--gemini-global-sidebar-width, 308px);
   --gemini-toc-effective-width:   var(--gemini-toc-width);
 
   /* --- Z-Indices --- */
@@ -46,7 +46,7 @@
 /* State Adjustments for CSS Variables */
 body:has(.sidenav-with-history-container.collapsed) {
   --gemini-switcher-offset: 0px;
-  --gemini-current-sidebar-width: var(--bard-sidenav-closed-width, 72px);
+  --gemini-current-sidebar-width: 72px;
 }
 
 body.gemini-toc-closed {
@@ -221,8 +221,11 @@ gem-nav-list-item:has(#gemini-db-export-button) {
 #new-folder-button,
 #gemini-db-export-button,
 #gemini-toc-toggle-button {
-  margin-left: 12px !important;
-  width: calc(100% - 24px) !important;
+  /* margin-left: 12px !important; */
+  /* width: calc(100% - 24px) !important; */
+  width: 100% !important;
+  padding-left: 0px !important;
+  padding-right: 8px !important;
 }
 
 gem-nav-list-item:has(#gemini-toc-toggle-button) {
@@ -471,8 +474,14 @@ gem-nav-list-item[data-test-id="conversation"].chat-item-rolled-up > * {
 top-bar-actions {
   left: calc(var(--gemini-current-sidebar-width) + var(--gemini-toc-effective-width)) !important;
   transition: left 300ms cubic-bezier(0.2, 0, 0, 1) !important;
+  margin-right: 24px !important;
 }
 
+/* 7.6 Ghosting-Fix für das Drei-Punkte-Menü */
+gem-nav-list-item[data-test-id="conversation"] .hovered-trailing-content,
+gem-nav-list-item[data-test-id="conversation"] .hovered-trailing-content * {
+    transition: none !important;
+}
 
 /* ==========================================================================
    8. DRAG & DROP VISUALS
@@ -524,6 +533,10 @@ gem-nav-list-item[data-test-id="conversation"].gemini-chat-drag-over {
   font: inherit; color: var(--gemini-text-selected); font-weight: 500;
   border: none; outline: none; background: transparent;
   padding: 0; margin: 0; min-width: 0; /* flex-grow: 1; wurde hier entfernt */
+}
+
+.folder-header:not(.is-subfolder) .folder-name-input {
+  font-size: 15px !important;
 }
 
 /* Export Button Tooltip */
@@ -581,8 +594,9 @@ gem-nav-list-item[data-test-id="conversation"].gemini-chat-drag-over {
 }
 
 .formatted-code-block-internal-container {
-    border-bottom-left-radius: var(--gemini-radius) !important;
-    border-bottom-right-radius: var(--gemini-radius) !important;
+    /* border-bottom-left-radius: var(--gemini-radius) !important;
+    border-bottom-right-radius: var(--gemini-radius) !important; */
+    border-radius: var(--gemini-radius) !important;
 }
 
 /* Inline Code in User Prompts */
@@ -884,7 +898,8 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 .query-text .code-container,
 .gemini-toc-item .code-container {
-  color: var(--gem-sys-color--on-surface-variant); /* Standard Text */
+  /* color: var(--gem-sys-color--on-surface-variant); /* Standard Text */
+  color: var(--lumi-sys-color--code-primary-text) !important;
   
   /* FIX: Enable horizontal scrolling only when needed and prevent wrapping */
   display: block;
@@ -904,108 +919,115 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 /* --- GOOGLE GEMINI NATIVE SYNTAX HIGHLIGHTING (Variables) --- */
 
-/* Kommentare */
 .query-text .hljs-comment,
-.gemini-toc-item .hljs-comment,
+.gemini-toc-item .hljs-comment {
+    color: var(--lumi-sys-color--code-grey-text)
+}
+
+.query-text .hljs-operator,
+.gemini-toc-item .hljs-operator {
+    opacity: .7
+}
+
+.query-text .hljs-bullet,
+.gemini-toc-item .hljs-bullet,
+.query-text .hljs-deletion,
+.gemini-toc-item .hljs-deletion,
+.query-text .hljs-name,
+.gemini-toc-item .hljs-name,
+.query-text .hljs-selector-tag,
+.gemini-toc-item .hljs-selector-tag,
+.query-text .hljs-template-variable,
+.gemini-toc-item .hljs-template-variable,
+.query-text .hljs-variable,
+.gemini-toc-item .hljs-variable {
+    color: var(--lumi-sys-color--code-blue-text)
+}
+
+.query-text .hljs-attr,
+.gemini-toc-item .hljs-attr,
+.query-text .hljs-link,
+.gemini-toc-item .hljs-link,
+.query-text .hljs-literal,
+.gemini-toc-item .hljs-literal,
+.query-text .hljs-number,
+.gemini-toc-item .hljs-number,
+.query-text .hljs-symbol,
+.gemini-toc-item .hljs-symbol {
+    color: var(--lumi-sys-color--code-pink-text)
+}
+
+.query-text .hljs-class,
+.gemini-toc-item .hljs-class,
+.query-text .hljs-title,
+.gemini-toc-item .hljs-title {
+    color: var(--lumi-sys-color--code-yellow-text)
+}
+
+.query-text .hljs-strong,
+.gemini-toc-item .hljs-strong {
+    font-weight: 700
+}
+
+.query-text .hljs-addition,
+.gemini-toc-item .hljs-addition,
+.query-text .hljs-code,
+.gemini-toc-item .hljs-code,
+.query-text .hljs-string,
+.gemini-toc-item .hljs-string {
+    color: var(--lumi-sys-color--code-green-text)
+}
+
+.query-text .hljs-built_in,
+.gemini-toc-item .hljs-built_in,
+.query-text .hljs-doctag,
+.gemini-toc-item .hljs-doctag,
 .query-text .hljs-quote,
-.gemini-toc-item .hljs-quote {
-  color: var(--bard-color-code-comment);
+.gemini-toc-item .hljs-quote,
+.query-text .hljs-regexp,
+.gemini-toc-item .hljs-regexp {
+    color: var(--lumi-sys-color--code-red-text)
+}
+
+.query-text .hljs-keyword,
+.gemini-toc-item .hljs-keyword,
+.query-text .hljs-selector-attr,
+.gemini-toc-item .hljs-selector-attr,
+.query-text .hljs-selector-class,
+.gemini-toc-item .hljs-selector-class,
+.query-text .hljs-selector-id,
+.gemini-toc-item .hljs-selector-id,
+.query-text .hljs-selector-pseudo,
+.gemini-toc-item .hljs-selector-pseudo,
+.query-text .hljs-template-tag,
+.gemini-toc-item .hljs-template-tag,
+.query-text .hljs-type,
+.gemini-toc-item .hljs-type {
+    color: var(--lumi-sys-color--code-purple-text)
+}
+
+.query-text .hljs-emphasis,
+.gemini-toc-item .hljs-emphasis {
+    font-style: italic
+}
+
+.query-text .hljs-meta,
+.gemini-toc-item .hljs-meta,
+.query-text .hljs-meta-keyword,
+.gemini-toc-item .hljs-meta-keyword,
+.query-text .hljs-meta-string,
+.gemini-toc-item .hljs-meta-string {
+    color: var(--lumi-sys-color--code-red-text)
+}
+
+.query-text .hljs-meta-keyword,
+.gemini-toc-item .hljs-meta-keyword {
+    font-weight: 700
 }
 
 .query-text .hljs-quote,
 .gemini-toc-item .hljs-quote {
   font-style: italic;
-}
-
-/* Variablen, HTML-Tags, CSS-Tags */
-/* User Mapping: selector-tag -> Red (variables) */
-.query-text .hljs-variable,
-.gemini-toc-item .hljs-variable,
-.query-text .hljs-template-variable,
-.gemini-toc-item .hljs-template-variable,
-.query-text .hljs-tag,
-.gemini-toc-item .hljs-tag,
-.query-text .hljs-name,
-.gemini-toc-item .hljs-name,
-.query-text .hljs-selector-tag, 
-.gemini-toc-item .hljs-selector-tag, 
-.query-text .hljs-deletion,
-.gemini-toc-item .hljs-deletion {
-  color: var(--bard-color-code-variables);
-}
-
-/* Keywords, CSS-Klassen, Selektoren */
-/* User Mapping: selector-class -> Purple (keyword) */
-.query-text .hljs-keyword,
-.gemini-toc-item .hljs-keyword,
-.query-text .hljs-selector-id,
-.gemini-toc-item .hljs-selector-id,
-.query-text .hljs-selector-class,
-.gemini-toc-item .hljs-selector-class,
-.query-text .hljs-selector-attr,
-.gemini-toc-item .hljs-selector-attr,
-.query-text .hljs-selector-pseudo,
-.gemini-toc-item .hljs-selector-pseudo {
-  color: var(--bard-color-code-keyword);
-}
-
-/* Strings, Symbole */
-.query-text .hljs-string,
-.gemini-toc-item .hljs-string,
-.query-text .hljs-symbol,
-.gemini-toc-item .hljs-symbol,
-.query-text .hljs-bullet,
-.gemini-toc-item .hljs-bullet,
-.query-text .hljs-addition,
-.gemini-toc-item .hljs-addition {
-  color: var(--bard-color-code-string);
-}
-
-/* Zahlen, Literale, Konstanten */
-/* User Mapping: number -> Orange (literal) */
-.query-text .hljs-number,
-.gemini-toc-item .hljs-number,
-.query-text .hljs-literal,
-.gemini-toc-item .hljs-literal,
-.query-text .hljs-type,
-.gemini-toc-item .hljs-type,
-.query-text .hljs-params,
-.gemini-toc-item .hljs-params {
-  color: var(--bard-color-code-literal);
-}
-
-/* Klassen, Funktionen, Titel */
-.query-text .hljs-title,
-.gemini-toc-item .hljs-title,
-.query-text .hljs-section,
-.gemini-toc-item .hljs-section,
-.query-text .hljs-class .hljs-title,
-.gemini-toc-item .hljs-class .hljs-title {
-  color: var(--bard-color-code-class);
-}
-
-/* Built-ins, Meta, Links */
-/* User Mapping: meta -> Blue (quotes-and-meta) */
-.query-text .hljs-built_in,
-.gemini-toc-item .hljs-built_in,
-.query-text .hljs-builtin-name,
-.gemini-toc-item .hljs-builtin-name,
-.query-text .hljs-meta,
-.gemini-toc-item .hljs-meta,
-.query-text .hljs-link,
-.gemini-toc-item .hljs-link {
-  color: var(--bard-color-code-quotes-and-meta);
-}
-
-/* Attribute */
-/* User Mapping: attribute -> Light Gray.
-   Da keine explizite Variable existiert, nutzen wir 'inherit',
-   was auf die Standard-Textfarbe zurückfällt (meist hellgrau/weiß im Dark Mode). */
-.query-text .hljs-attr,
-.gemini-toc-item .hljs-attr,
-.query-text .hljs-attribute,
-.gemini-toc-item .hljs-attribute {
-  color: inherit;
 }
 
 /* Fett / Kursiv */
@@ -1382,8 +1404,14 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   height: 100%; /* Zieht die Pille auf die vollen 40px des Buttons */
   border-radius: var(--gemini-radius);
   background-color: var(--gemini-bg-item) !important;
-  padding-right: 17px; /* Optischer Abstand rechts vom Text */
+  padding-left: 8px !important;
+  padding-right: 13px; /* Optischer Abstand rechts vom Text */
   transition: background-color 0.1s ease-out;
+}
+
+.pill-btn-inner .mat-mdc-list-item-icon {
+    margin-left: 2px !important;
+    margin-right: 6px !important;
 }
 
 /* 3. HOVER-MECHANIK */
@@ -1440,4 +1468,18 @@ gem-nav-list-item:has(#gemini-db-export-button) {
 
 gem-nav-list-item:has(#gemini-toc-toggle-button) { 
   order: 3 !important;
+}
+
+
+.model-response-text .code-block {
+  margin-top: 0px !important;
+}
+
+.model-response-text .formatted-code-block-internal-container {
+  padding-top: 14px !important;
+  padding-bottom: var(--gem-sys-spacing--xs) !important;
+}
+
+.model-response-text .code-container {
+  padding-top: 6px !important;
 }

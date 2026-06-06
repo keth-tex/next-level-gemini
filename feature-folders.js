@@ -379,7 +379,7 @@ function injectFolderButton() {
              const tocBtn = document.getElementById('gemini-toc-toggle-button');
              if (tocBtn) {
                  // Insert BEFORE the TOC button wrapper
-                 const tocWrapper = tocBtn.closest('side-nav-action-button');
+                 const tocWrapper = tocBtn.closest('gem-nav-list-item');
                  if (tocWrapper) {
                      actionList.insertBefore(folderBtnWrapper, tocWrapper);
                  } else {

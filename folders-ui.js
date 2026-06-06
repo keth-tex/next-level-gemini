@@ -70,7 +70,7 @@ function createGenericSidebarButton(id, iconName, label, extraClasses = '', onCl
   pillInner.className = 'pill-btn-inner';
   pillInner.style.display = 'flex';
   pillInner.style.alignItems = 'center';
-  pillInner.style.width = '100%';
+  // pillInner.style.width = '100%';
   pillInner.appendChild(iconContainer);
   pillInner.appendChild(contentSpan);
 
@@ -122,7 +122,7 @@ function injectDatabaseExportButton() {
     try {
         const exportBtnWrapper = createGenericSidebarButton(
             'gemini-db-export-button',
-            'database',
+            'agent_mode',
             'Datenbank exportieren',
             'new-folder-button', // Erbt 100% des Ordner-Pillen-Stylings
             handleExportDatabase

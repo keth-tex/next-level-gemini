@@ -45,14 +45,20 @@ function injectionLogic() {
 
   // 1. Export Button Logic
   try {
-    const reliableElement = document.querySelector(GeminiDOM.pillbox);
+    const rightSection = document.querySelector(GeminiDOM.topBarRight);
+    const advUpsell = rightSection ? rightSection.querySelector('.buttons-container.adv-upsell') : null;
     const buttonWrapper = document.getElementById('gemini-tex-export-button-wrapper');
-    const mainContainer = reliableElement ? reliableElement.parentElement : null;
 
-    if (reliableElement && mainContainer && !buttonWrapper) {
+    if (rightSection && !buttonWrapper) {
       // console.log("Gemini Exporter: Pillbox found. Injecting button.");
       const buttonElement = createExportButton();
-      mainContainer.prepend(buttonElement);
+      if (advUpsell) {
+        console.log("Gemini Exporter: ADVUPSELL.");
+        advUpsell.after(buttonElement);
+      } else {
+        console.log("Gemini Exporter: NOT FOUND.");
+        rightSection.prepend(buttonElement);
+      }
     }
   } catch (e) {
     console.error("Error injecting export button:", e);

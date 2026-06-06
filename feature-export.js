@@ -180,15 +180,10 @@ function createExportButton() {
 
   newButton.addEventListener('click', scrapeAndSendConversation);
 
-  const newTooltip = document.createElement('span');
-  newTooltip.className = 'gemini-tex-tooltip';
-  newTooltip.textContent = 'Download als TeX-Datei';
-
   const newWrapperDiv = document.createElement('div');
   newWrapperDiv.id = 'gemini-tex-export-button-wrapper';
   newWrapperDiv.className = "buttons-container ng-star-inserted";
   newWrapperDiv.appendChild(newButton);
-  newWrapperDiv.appendChild(newTooltip);
 
   return newWrapperDiv;
 }

@@ -169,7 +169,7 @@ function injectSidebarButton() {
               const folderBtn = document.getElementById('new-folder-button');
               if (folderBtn) {
                    // Wenn Folder Button da ist, fügen wir TOC danach ein (Wrapper nach Wrapper)
-                   const folderWrapper = folderBtn.closest('side-nav-action-button');
+                   const folderWrapper = folderBtn.closest('gem-nav-list-item');
                    if (folderWrapper && folderWrapper.nextSibling) {
                        actionList.insertBefore(wrapper, folderWrapper.nextSibling);
                    } else {

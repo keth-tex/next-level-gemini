@@ -30,7 +30,7 @@ const GeminiDOM = {
   answerPanel: '.markdown-main-panel',
   hideFromActions: '.hide-from-message-actions',
   pendingRequest: 'pending-request',
-  pillbox: 'div[data-test-id="pillbox"]',
+  topBarRight: 'top-bar-actions .right-section',
   mathInline: 'span.math-inline[data-math]',
 
   // === UI / OVERLAYS / TOASTS ===
