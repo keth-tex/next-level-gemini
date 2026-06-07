@@ -227,14 +227,20 @@ function injectionLogic() {
     console.error("Error injecting folder button:", e);
   }
 
-  // 3.5. Database Export Button
+  // 3.5. Database Export & Import Buttons
   try {
     const conversationContainer = document.querySelector(GeminiDOM.conversationsContainer);
-    if (conversationContainer && typeof injectDatabaseExportButton === 'function') {
-      injectDatabaseExportButton();
+    if (conversationContainer) {
+      if (typeof injectDatabaseExportButton === 'function') {
+        injectDatabaseExportButton();
+      }
+      // NEUER AUFRUF:
+      if (typeof injectDatabaseImportButton === 'function') {
+        injectDatabaseImportButton();
+      }
     }
   } catch (e) {
-    console.error("Error injecting database export button:", e);
+    console.error("Error injecting database buttons:", e);
   }
 
   // 4. Table of Contents (TOC)

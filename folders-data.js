@@ -356,3 +356,65 @@ async function handleExportDatabase() {
         URL.revokeObjectURL(url);
     }, 100);
 }
+
+/**
+ * Importiert eine zuvor exportierte Datenbank aus einer JSON-Datei.
+ * Überschreibt die aktuellen lokalen und synchronisierten Daten.
+ */
+async function handleImportDatabase() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                
+                // Validierung der Struktur
+                if (!data.storage || !data.storage.sync) {
+                    alert("Ungültige Backup-Datei: Es fehlen die 'storage.sync' Daten.");
+                    return;
+                }
+
+                if (!confirm("Achtung: Dies überschreibt deine aktuelle Ordner-Struktur unwiderruflich! Möchtest du fortfahren?")) {
+                    return;
+                }
+
+                // Wächter blockieren, damit das Setzen der Daten nicht zu Konflikten führt
+                isLocalSaveInProgress = true;
+                if (typeof localSaveTimeout !== 'undefined' && localSaveTimeout) {
+                    clearTimeout(localSaveTimeout);
+                }
+                
+                // 1. Komplette Sync-Datenbank der Erweiterung leeren
+                await new Promise(resolve => chrome.storage.sync.clear(resolve));
+                
+                // 2. Importierte Sync-Daten setzen
+                await new Promise(resolve => chrome.storage.sync.set(data.storage.sync, resolve));
+                
+                // 3. Importierte Local-Daten (Aufklapp-Status) setzen
+                if (data.storage.local && data.storage.local.gemini_folder_states) {
+                    await new Promise(resolve => chrome.storage.local.set({'gemini_folder_states': data.storage.local.gemini_folder_states}, resolve));
+                }
+
+                alert("Import erfolgreich! Die Seite wird nun neu geladen.");
+                window.location.reload();
+                
+            } catch (err) {
+                console.error("Gemini Exporter: Fehler beim Importieren:", err);
+                alert("Es gab einen Fehler beim Importieren der Datei. Siehe Entwicklerkonsole für Details.");
+            } finally {
+                isLocalSaveInProgress = false;
+            }
+        };
+        reader.readAsText(file);
+    };
+    
+    // Dialogfeld für Dateiauswahl öffnen
+    input.click();
+}

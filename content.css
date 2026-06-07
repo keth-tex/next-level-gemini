@@ -214,7 +214,8 @@ body.gemini-toc-closed {
    ========================================================================== */
 
 gem-nav-list-item:has(#new-folder-button),
-gem-nav-list-item:has(#gemini-db-export-button) {
+gem-nav-list-item:has(#gemini-db-export-button),
+gem-nav-list-item:has(#gemini-db-import-button) {
   margin-bottom: 18px !important;
 }
 
@@ -1463,11 +1464,15 @@ gem-nav-list-item:has(#new-folder-button) {
 
 gem-nav-list-item:has(#gemini-db-export-button) { 
   order: 2 !important;
-  margin-bottom: 32px !important;
+}
+
+gem-nav-list-item:has(#gemini-db-import-button) { 
+  order: 3 !important;
+  margin-bottom: 32px !important; /* ...und stattdessen unter den Import-Button gesetzt */
 }
 
 gem-nav-list-item:has(#gemini-toc-toggle-button) { 
-  order: 3 !important;
+  order: 4 !important;
 }
 
 

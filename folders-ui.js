@@ -136,6 +136,31 @@ function injectDatabaseExportButton() {
     }
 }
 
+/**
+ * Injiziert den Import-Button blind in die Seitenleiste.
+ */
+function injectDatabaseImportButton() {
+    const actionList = document.querySelector(GeminiDOM.desktopControlsList);
+    if (!actionList || document.getElementById('gemini-db-import-button')) return;
+
+    const wasModifying = window.isGeminiModifyingDOM;
+    window.isGeminiModifyingDOM = true;
+
+    try {
+        const importBtnWrapper = createGenericSidebarButton(
+            'gemini-db-import-button',
+            'arrow_circle_down',
+            'Datenbank importieren',
+            'new-folder-button', // Erbt das Pillen-Styling
+            handleImportDatabase
+        );
+
+        actionList.appendChild(importBtnWrapper);
+    } finally {
+        window.isGeminiModifyingDOM = wasModifying;
+    }
+}
+
 function renderSingleFolder(folder, index, totalFolders, parentColor = null) {
   const header = document.createElement('div');
   const isSubfolder = folder.parentId != null;
