@@ -39,29 +39,100 @@ function waitForGoogleLazyLoad() {
   });
 }
 
+function createArchiveButton() {
+    const newButton = document.createElement('button');
+    newButton.id = 'gemini-archive-button';
+    newButton.className = "mdc-icon-button mat-mdc-icon-button mat-mdc-button-base mat-unthemed";
+    newButton.setAttribute('aria-label', 'Chat lokal archivieren');
+
+    // Das native Lumi-Icon mit dem Stichwort "drive" laden
+    const newIcon = document.createElement('mat-icon');
+    newIcon.className = "mat-icon notranslate lm-icon-l lumi-symbols mat-ligature-font mat-icon-no-color ng-star-inserted";
+    newIcon.setAttribute('role', 'img');
+    newIcon.setAttribute('aria-hidden', 'true');
+    newIcon.setAttribute('data-mat-icon-name', 'drive');
+    newIcon.setAttribute('data-mat-icon-namespace', 'lumi-symbols');
+    newIcon.textContent = 'drive';
+
+    const spanPersistentRipple = document.createElement('span');
+    spanPersistentRipple.className = "mat-mdc-button-persistent-ripple mdc-icon-button__ripple";
+
+    const spanRipple = document.createElement('span');
+    spanRipple.className = "mat-ripple mat-mdc-button-ripple";
+
+    const spanFocus = document.createElement('span');
+    spanFocus.className = "mat-focus-indicator";
+
+    const spanTouch = document.createElement('span');
+    spanTouch.className = "mat-mdc-button-touch-target";
+
+    newButton.appendChild(spanPersistentRipple);
+    newButton.appendChild(newIcon);
+    newButton.appendChild(spanFocus);
+    newButton.appendChild(spanTouch);
+    newButton.appendChild(spanRipple);
+
+    newButton.addEventListener('click', (e) => {
+        if (typeof handleArchiveClick === 'function') {
+            handleArchiveClick(e);
+        } else {
+            console.error("handleArchiveClick ist nicht definiert!");
+        }
+    });
+
+    const newWrapperDiv = document.createElement('div');
+    newWrapperDiv.id = 'gemini-archive-button-wrapper';
+    newWrapperDiv.className = "buttons-container ng-star-inserted";
+    newWrapperDiv.appendChild(newButton);
+
+    return newWrapperDiv;
+}
+
 function injectionLogic() {
   // NOTBREMSE: Wenn wir selbst gerade bauen, ignorieren!
   if (window.isGeminiModifyingDOM) return;
 
-  // 1. Export Button Logic
+  // 1. Export & Archive Button Logic
   try {
     const rightSection = document.querySelector(GeminiDOM.topBarRight);
     const advUpsell = rightSection ? rightSection.querySelector('.buttons-container.adv-upsell') : null;
-    const buttonWrapper = document.getElementById('gemini-tex-export-button-wrapper');
+    
+    const exportWrapper = document.getElementById('gemini-tex-export-button-wrapper');
+    const archiveWrapper = document.getElementById('gemini-archive-button-wrapper');
 
-    if (rightSection && !buttonWrapper) {
-      // console.log("Gemini Exporter: Pillbox found. Injecting button.");
-      const buttonElement = createExportButton();
-      if (advUpsell) {
-        console.log("Gemini Exporter: ADVUPSELL.");
-        advUpsell.after(buttonElement);
-      } else {
-        console.log("Gemini Exporter: NOT FOUND.");
-        rightSection.prepend(buttonElement);
+    if (rightSection) {
+      // 1a. Export-Button einfügen, falls nicht vorhanden
+      if (!exportWrapper) {
+        const exportElement = createExportButton();
+        if (advUpsell) {
+          // console.log("Gemini Exporter: ADVUPSELL.");
+          advUpsell.after(exportElement);
+        } else {
+          // console.log("Gemini Exporter: NOT FOUND.");
+          rightSection.prepend(exportElement);
+        }
+      }
+
+      // 1b. Archiv-Button einfügen, falls nicht vorhanden
+      if (!archiveWrapper && typeof createArchiveButton === 'function') {
+        const archiveElement = createArchiveButton();
+        
+        // Den Export-Button frisch im DOM suchen (da er im Schritt 1a gerade erst erzeugt worden sein könnte)
+        const currentExportBtn = document.getElementById('gemini-tex-export-button-wrapper');
+        
+        if (currentExportBtn) {
+          // Exakt vor dem Export-Button platzieren (links davon)
+          currentExportBtn.before(archiveElement);
+        } else if (advUpsell) {
+          // Fallback, falls der Export-Button unerwartet fehlt
+          advUpsell.after(archiveElement);
+        } else {
+          rightSection.prepend(archiveElement);
+        }
       }
     }
   } catch (e) {
-    console.error("Error injecting export button:", e);
+    console.error("Error injecting top bar buttons:", e);
   }
 
   // 2. Sidebar Resizer Logic

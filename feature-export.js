@@ -107,7 +107,12 @@ function scrapeAndSendConversation(event) {
   const conversation = [];
   const promptSelector = GeminiDOM.queryText;
   const answerSelector = GeminiDOM.answerPanel;
-  const blocks = document.querySelectorAll(GeminiDOM.conversationBlock);
+  
+  // Alle Blöcke suchen und versteckte Original- oder Archiv-Elemente herausfiltern
+  const allBlocks = document.querySelectorAll(GeminiDOM.conversationBlock);
+  const blocks = Array.from(allBlocks).filter(block => {
+      return !block.classList.contains('gemini-native-hidden') && !block.closest('.gemini-native-hidden');
+  });
 
   if (blocks.length === 0) {
     console.error("Error: Could not find conversation blocks (e.g. '.conversation-container'). Check selectors.");
@@ -115,6 +120,9 @@ function scrapeAndSendConversation(event) {
   }
 
   for (const block of blocks) {
+    // Wenn es sich um einen ausstehenden Request handelt, überspringen (analog zum TOC)
+    if (block.tagName && block.tagName.toLowerCase() === 'pending-request') continue;
+
     const promptEl = block.querySelector(promptSelector);
     const answerEl = block.querySelector(answerSelector);
     if (promptEl && answerEl) {
@@ -122,7 +130,7 @@ function scrapeAndSendConversation(event) {
       const promptText = turndownService.turndown(promptHtml);
       const answerElClone = answerEl.cloneNode(true);
       
-      // Remove elements that shouldn't be in the export
+      // Elemente entfernen, die nicht exportiert werden sollen
       const unwantedElements = answerElClone.querySelectorAll(GeminiDOM.hideFromActions);
       unwantedElements.forEach(el => el.remove());
       

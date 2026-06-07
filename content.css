@@ -1483,3 +1483,108 @@ gem-nav-list-item:has(#gemini-toc-toggle-button) {
 .model-response-text .code-container {
   padding-top: 6px !important;
 }
+
+/* ==========================================================================
+   ARCHIVIERTE CHATS
+   ========================================================================== */
+
+.gemini-archived-chat-item {
+    position: relative;
+}
+
+.gemini-archived-chat-item * {
+    background-color: transparent !important;
+}
+
+/* 2. Container der Buttons (Transparenz sicherstellen) */
+.gemini-archived-chat-item .archive-actions {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex !important;
+    align-items: center;
+    gap: 4px;
+    z-index: var(--gemini-z-actions);
+    pointer-events: auto;
+}
+
+/* 3. Status-Icon (Drive) im Ruhezustand */
+.gemini-archived-chat-item .archive-actions .archive-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gemini-archived-chat-item:hover .archive-actions .archive-status-icon {
+    display: none !important;
+}
+
+/* 4. Aktions-Buttons (Umbenennen / Löschen) */
+.gemini-archived-chat-item .archive-actions .action-btn {
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 9999px !important;
+    display: none !important;
+    padding: 2px !important;
+}
+
+.gemini-archived-chat-item:hover .archive-actions .action-btn {
+    display: flex !important;
+}
+
+/* 5. Einheitliche Icons (Größe & Farbe für Drive UND Hover-Buttons) */
+.gemini-archived-chat-item .archive-actions mat-icon {
+    font-size: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    color: var(--gemini-text-variant) !important;
+}
+
+.gemini-archived-chat-item .archive-actions .action-btn:hover {
+    background-color: #4d4d4d !important;
+}
+
+.gemini-archived-chat-item .archive-actions .action-btn:hover mat-icon {
+    color: var(--gemini-text-primary) !important;
+    /* background-color: #25bace !important; */
+}
+
+.gemini-archived-chat-item .archive-actions .action-btn.delete-btn {
+    margin-right: 2px !important;
+}
+
+/* 6. Ausblenden während der Bearbeitung */
+.gemini-archived-chat-item.is-editing .archive-actions {
+    display: none !important;
+}
+
+.gemini-archived-chat-item .folder-name-input {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    color: rgb(223, 231, 245) !important;
+    font-variation-settings: "ROND" 0, "slnt" 0, "wdth" 92, "wght" 400 !important;
+    height: auto !important;
+    line-height: 17px !important;
+    outline-width: 0px !important;
+    padding-bottom: 3px !important;
+}
+
+/* 7. Archiv-Button global ausblenden, wenn im Archiv-Modus */
+body.gemini-is-archive-view #gemini-archive-button-wrapper {
+    display: none !important;
+}
+
+.gemini-archived-chat-item > a {
+    height: 32px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+.archive-status-icon {
+    margin-right: 4px !important;
+}
+
+.gemini-archived-chat-item .gem-nav-list-item.is-active {
+    background-color: var(--lumi-sys-color--surface-dim) !important;
+}

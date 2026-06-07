@@ -77,7 +77,8 @@ async function preloadAllChats() {
   if (Array.isArray(structure)) {
     structure.forEach(folder => {
       if (Array.isArray(folder.chatIds)) {
-        expectedChatCount += folder.chatIds.length;
+        // Zähle nur native Chats, da die archivierten nicht per Lazy-Loading geladen werden
+        expectedChatCount += folder.chatIds.filter(id => !id.startsWith('a_')).length;
       }
     });
   }
@@ -189,7 +190,9 @@ async function preloadAllChats() {
         currentStructure.forEach(folder => {
             if (Array.isArray(folder.chatIds)) {
                 const originalLen = folder.chatIds.length;
-                folder.chatIds = folder.chatIds.filter(id => domChatIds.has(id));
+                // Archiv-IDs (beginnen mit a_) werden von der DOM-Prüfung ausgenommen und bleiben erhalten
+                folder.chatIds = folder.chatIds.filter(id => id.startsWith('a_') || domChatIds.has(id));
+                
                 if (folder.chatIds.length !== originalLen) {
                     changed = true;
                 }
@@ -329,6 +332,10 @@ async function prepareFoldersAndStartSync() {
 
   // INJECT NEW FOLDER BUTTON (Updated location)
   injectFolderButton();
+
+  if (typeof injectArchivedChatsIntoDOM === 'function') {
+      await injectArchivedChatsIntoDOM();
+  }
 
   // Start Observer
   const conversationContainer = document.querySelector(GeminiDOM.conversationsContainer);

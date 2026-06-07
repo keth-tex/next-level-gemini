@@ -241,6 +241,11 @@ function updateTOC() {
   // 1a. Gather current data using the robust text reconstructor
   const currentData = [];
   blocks.forEach((block, index) => {
+      // --- ÄNDERUNG SCHRITT B: Ignoriere versteckte Original-Elemente im Archiv-Modus ---
+      if (block.classList.contains('gemini-native-hidden') || block.closest('.gemini-native-hidden')) {
+          return;
+      }
+
       // FIX: Skip pending requests
       if (block.tagName.toLowerCase() === 'pending-request') return;
 
