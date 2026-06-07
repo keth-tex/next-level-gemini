@@ -217,12 +217,16 @@ async function preloadAllChats() {
 
       if (isComplete) {
           const allChatEls = Array.from(document.querySelectorAll(GeminiDOM.conversationItemsContainer));
-          if (allChatEls.length > 0) {
+          
+          // ABSICHERUNG: Den ältesten Chat NUR speichern, wenn es noch keinen gibt (Erst-Initialisierung)!
+          // Das Ändern dieser ID passiert bei Löschungen fortan exklusiv in removeDeletedChatFromDB()
+          if (!TARGET_OLDEST_CHAT_ID && allChatEls.length > 0) {
               const oldestEl = allChatEls[allChatEls.length - 1];
               const oldestId = extractChatIdFromElement(oldestEl);
               
               if (oldestId) {
                   await new Promise(res => chrome.storage.sync.set({ gemini_oldest_chat_id: oldestId }, res));
+                  console.log(`Gemini Exporter: Initialer ältester Chat (Ziel-Chat) gesichert auf ${oldestId}`);
               }
           }
 
