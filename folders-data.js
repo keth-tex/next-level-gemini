@@ -13,6 +13,31 @@ let localSaveTimeout = null;
 let syncedDeletedChats = [];
 
 /**
+ * Schreibt einen Fehler in den lokalen Speicher der Erweiterung.
+ */
+function logSyncError(contextMessage, errorDetails) {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+        time: timestamp,
+        context: contextMessage,
+        error: errorDetails
+    };
+
+    chrome.storage.local.get({ errorLogs: [] }, (data) => {
+        let logs = data.errorLogs;
+        logs.push(logEntry);
+        
+        // Verhindert endloses Aufblähen (behält nur die letzten 100 Logs)
+        if (logs.length > 100) {
+            logs.shift();
+        }
+        
+        chrome.storage.local.set({ errorLogs: logs });
+        console.warn(`[Gemini Sync Error geloggt]`, logEntry);
+    });
+}
+
+/**
  * Speichert NUR den lokalen Aufklapp-Status der Ordner.
  * Verursacht keinen Cloud-Traffic und verhindert das versehentliche
  * Überschreiben von Cloud-Daten beim Neuladen der Seite.
