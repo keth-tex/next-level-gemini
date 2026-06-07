@@ -239,6 +239,17 @@ gem-nav-list-item:has(#gemini-toc-toggle-button) {
   padding: 24px 32px !important;
 }
 
+.user-query-bubble-with-background:has(.luminous-toggle-container) {
+  padding-bottom: 52px !important;
+}
+
+.user-query-bubble-with-background .luminous-toggle-container {
+  right: unset !important;
+  left: 50% !important;
+  transform: translate(-50%) !important;
+  bottom: 16px !important;
+}
+
 input-area-v2 { border-radius: 24px !important; }
 
 .text-input-field { padding: 18px 24px !important; }
@@ -594,10 +605,16 @@ gem-nav-list-item[data-test-id="conversation"].gemini-chat-drag-over {
     border-top-right-radius: var(--gemini-radius) !important;
 }
 
-.formatted-code-block-internal-container {
+.model-response-text .formatted-code-block-internal-container {
     /* border-bottom-left-radius: var(--gemini-radius) !important;
     border-bottom-right-radius: var(--gemini-radius) !important; */
     border-radius: var(--gemini-radius) !important;
+}
+
+.query-text .formatted-code-block-internal-container,
+.gemini-toc-item .formatted-code-block-internal-container {
+    border-bottom-left-radius: var(--gemini-radius) !important;
+    border-bottom-right-radius: var(--gemini-radius) !important;
 }
 
 /* Inline Code in User Prompts */
@@ -609,9 +626,12 @@ gem-nav-list-item[data-test-id="conversation"].gemini-chat-drag-over {
   --gds-type-scale-default-wdth: var(--gem-sys-typography-type-scale--body-m-font-width);
   font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond);
   font-family: Google Sans Mono, monospace;
-  color: var(--gem-sys-color--on-surface);
+  /* color: var(--gem-sys-color--on-surface); */
+  /* color: var(--lumi-sys-color--on-surface-variant); */
+  color: rgba(255, 255, 255, 0.6);
   /* background-color: var(--gem-sys-color--surface-container-highest); */
-  background-color: rgba(255, 255, 255, .1);
+  background-color: rgba(255, 255, 255, .05);
+  /* background-color: var(--lumi-sys-color--surface-dim); */
   border-radius: 6px;
   padding: 1px 6px;
   /* font-family: 'Roboto Mono', monospace; /* Oder eine passende Monospace Font */
@@ -775,8 +795,8 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 .query-text .formatted-code-block-internal-container,
 .gemini-toc-item .formatted-code-block-internal-container {
   background-color: var(--gem-sys-color--surface-container);
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
+  /* border-top-left-radius: 4px;
+  border-top-right-radius: 4px; */
 }
 
 .query-text .formatted-code-block-internal-container {
@@ -816,17 +836,18 @@ p.query-text-line:has(+ .gemini-prompt-list) {
 
 .query-text .code-block-decoration {
   background-color: var(--gem-sys-color--surface-container);
-  border-radius: var(--gem-sys-spacing--l) var(--gem-sys-spacing--l) var(--gem-sys-spacing--xs) var(--gem-sys-spacing--xs);
+  /* border-radius: var(--gem-sys-spacing--l) var(--gem-sys-spacing--l) var(--gem-sys-spacing--xs) var(--gem-sys-spacing--xs); */
   -webkit-box-pack: justify;
   -moz-box-pack: justify;
   -ms-flex-pack: justify;
   justify-content: space-between;
-  padding: var(--gem-sys-spacing--s) var(--gem-sys-spacing--s) var(--gem-sys-spacing--s) var(--gem-sys-spacing--l);
-  margin-top: var(--gem-sys-spacing--xs);
-  margin-bottom: 2px;
+  /* padding: var(--gem-sys-spacing--s) var(--gem-sys-spacing--s) var(--gem-sys-spacing--s) var(--gem-sys-spacing--l); */
+  /* margin-top: var(--gem-sys-spacing--xs); */
+  /* margin-bottom: 2px; */
   height: 32px;
-  color: var(--gem-sys-color--on-surface-variant);
+  /* color: var(--gem-sys-color--on-surface-variant); */
   padding-inline-start: var(--gem-sys-spacing--l);
+  padding-top: 14px !important;
   min-height: var(--gem-sys-spacing--xxl);
   display: flex;
   -webkit-box-align: center;
@@ -837,8 +858,8 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   z-index: 1;
   position: sticky;
   /* background-color: var(--gemini-bg-surface); */
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
+  /* border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px; */
   /* padding: 8px 16px;
   font-family: 'Google Sans', sans-serif;
   font-size: 0.85em;
@@ -850,19 +871,31 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   min-height: 24px; */
 }
 
+.query-text .code-block-decoration > span {
+    font-size: 15px !important;
+    font-variation-settings: "ROND" 0, "slnt" 0, "wdth" 92, "wght" 540 !important;
+    font-weight: 540 !important;
+    line-height: 20px !important;
+}
+
+.query-text .code-container {
+    padding-top: 6px !important;
+}
+
 .gemini-toc-item .code-block-decoration {
   background-color: var(--gem-sys-color--surface-container);
-  border-radius: var(--gem-sys-spacing--l) var(--gem-sys-spacing--l) var(--gem-sys-spacing--xs) var(--gem-sys-spacing--xs);
+  /* border-radius: var(--gem-sys-spacing--l) var(--gem-sys-spacing--l) var(--gem-sys-spacing--xs) var(--gem-sys-spacing--xs); */
   -webkit-box-pack: justify;
   -moz-box-pack: justify;
   -ms-flex-pack: justify;
   justify-content: space-between;
-  padding: calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8);
+  /* padding: calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8) calc(var(--gem-sys-spacing--s) * .8);
   margin-top: calc(var(--gem-sys-spacing--xs) * .8);
-  margin-bottom: 2px;
+  margin-bottom: 2px; */
   height: 26px;
-  color: var(--gem-sys-color--on-surface-variant);
+  /* color: var(--gem-sys-color--on-surface-variant); */
   padding-inline-start: calc(var(--gem-sys-spacing--l) * .8);
+  padding-top: calc(14px * .8) !important;
   min-height: calc(var(--gem-sys-spacing--xxl) * .8);
   display: flex;
   -webkit-box-align: center;
@@ -872,14 +905,14 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   top: -13px;
   z-index: 1;
   position: sticky;
-  font-size: calc(var(--gem-sys-typography-type-scale--title-s-font-size) * .8) !important;
-  letter-spacing: calc(var(--gem-sys-typography-type-scale--title-s-font-tracking) * .8) !important;
+  /* font-size: calc(var(--gem-sys-typography-type-scale--title-s-font-size) * .8) !important; */
+  /* letter-spacing: calc(var(--gem-sys-typography-type-scale--title-s-font-tracking) * .8) !important;
   line-height: calc(var(--gem-sys-typography-type-scale--title-s-line-height) * .8) !important;
   --gds-type-scale-default-wdth: calc(var(--gem-sys-typography-type-scale--title-s-font-width) * .8) !important;
-  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important;
+  font-variation-settings: var(--gds-type-scale-default-wdth), var(--gds-type-scale-default-slnt), var(--gds-type-scale-default-rond) !important; */
   /* background-color: var(--gemini-bg-surface); */
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
+  /* border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px; */
   /* padding: 8px 16px;
   font-family: 'Google Sans', sans-serif;
   font-size: 0.85em;
@@ -889,6 +922,18 @@ p.query-text-line:has(+ .gemini-prompt-list) {
   display: flex;
   align-items: center;
   min-height: 24px; */
+}
+
+.gemini-toc-item .code-block-decoration > span {
+    font-size: calc(15px * .8) !important;
+    font-variation-settings: "ROND" 0, "slnt" 0, "wdth" 92, "wght" 540 !important;
+    font-weight: 540 !important;
+    line-height: calc(20px * .8) !important;
+    color: rgb(227, 227, 227) !important;
+}
+
+.gemini-toc-item .code-container {
+    padding-top: calc(6px * .8) !important;
 }
 
 .query-text .formatted-code-block-internal-container pre,
