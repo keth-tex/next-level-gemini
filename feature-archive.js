@@ -51,10 +51,8 @@ async function handleArchiveClick(e) {
         return;
     }
 
-    // DOM klonen
     const clone = chatWindow.cloneNode(true);
 
-    // 1. Kaputte/unnötige interaktive Elemente entfernen
     const elementsToRemove = clone.querySelectorAll([
         '.file-preview-container',
         '.response-container-footer',
@@ -67,7 +65,6 @@ async function handleArchiveClick(e) {
     
     elementsToRemove.forEach(el => el.remove());
 
-    // 2. Zustand der User-Queries auf 'expanded' erzwingen
     clone.querySelectorAll('.query-text.collapsed').forEach(el => {
         el.classList.remove('collapsed');
     });
@@ -82,40 +79,46 @@ async function handleArchiveClick(e) {
     const htmlContent = clone.innerHTML;
     const archiveId = 'a_' + crypto.randomUUID().replace(/-/g, '').substring(0, 16);
 
-    // HTML in den lokalen Speicher schreiben
-    await new Promise(resolve => chrome.storage.local.set({ [`gemini_archive_data_${archiveId}`]: htmlContent }, resolve));
+    try {
+        // 1. Inhalt in Google Drive sichern und File-ID erhalten
+        const driveFileId = await uploadArchiveToDrive(archiveId, htmlContent);
 
-    // Metadaten-Index aktualisieren
-    const data = await new Promise(resolve => chrome.storage.local.get(['gemini_archive_index'], resolve));
-    const index = data.gemini_archive_index || [];
-    index.push({ id: archiveId, title: title, timestamp: Date.now() });
-    await new Promise(resolve => chrome.storage.local.set({ gemini_archive_index: index }, resolve));
+        // 2. HTML parallel als schnellen Cache im lokalen Speicher ablegen
+        await new Promise(resolve => chrome.storage.local.set({ [`gemini_archive_data_${archiveId}`]: htmlContent }, resolve));
 
-    // Ziel-Ordner ermitteln
-    const currentChatId = activeLink.closest('gem-nav-list-item').dataset.chatId;
-    const { chatFolderMap, defaultFolderId } = await getChatFolderMap();
-    const targetFolderId = chatFolderMap.get(currentChatId) || defaultFolderId;
+        // 3. Metadaten-Index im SYNC-Storage aktualisieren
+        const data = await new Promise(resolve => chrome.storage.sync.get(['gemini_archive_index'], resolve));
+        const index = data.gemini_archive_index || [];
+        index.push({ id: archiveId, driveFileId: driveFileId, title: title, timestamp: Date.now() });
+        await new Promise(resolve => chrome.storage.sync.set({ gemini_archive_index: index }, resolve));
 
-    // Archiv-ID an die Ordnerstruktur anhängen
-    let structure = await getFolderStructure();
-    const targetFolder = structure.find(f => f.id === targetFolderId);
-    if (targetFolder) {
-        targetFolder.chatIds.push(archiveId);
-        await saveFolderStructure(structure);
+        const currentChatId = activeLink.closest('gem-nav-list-item').dataset.chatId;
+        const { chatFolderMap, defaultFolderId } = await getChatFolderMap();
+        const targetFolderId = chatFolderMap.get(currentChatId) || defaultFolderId;
+
+        let structure = await getFolderStructure();
+        const targetFolder = structure.find(f => f.id === targetFolderId);
+        if (targetFolder) {
+            targetFolder.chatIds.push(archiveId);
+            await saveFolderStructure(structure);
+        }
+
+        await injectArchivedChatsIntoDOM();
+        if (typeof syncFullListOrder === 'function') syncFullListOrder();
+        
+        alert(`Chat "${title}" wurde erfolgreich archiviert (Drive Sync aktiv)!`);
+    } catch (error) {
+        console.error("Fehler bei der Archivierung:", error);
+        alert("Archivierung fehlgeschlagen. Bitte Log prüfen.");
     }
-
-    // UI aktualisieren
-    await injectArchivedChatsIntoDOM();
-    if (typeof syncFullListOrder === 'function') syncFullListOrder();
-    
-    alert(`Chat "${title}" wurde erfolgreich lokal archiviert!`);
 }
 
 
 // --- 2. RENDER-LOGIK FÜR DIE SEITENLEISTE ---
 
 async function injectArchivedChatsIntoDOM() {
-    const data = await new Promise(resolve => chrome.storage.local.get(['gemini_archive_index'], resolve));
+    // Index wird nun geräteübergreifend aus dem Sync-Storage geladen
+    const data = await new Promise(resolve => chrome.storage.sync.get(['gemini_archive_index'], resolve));
     const index = data.gemini_archive_index || [];
     const container = document.querySelector(GeminiDOM.conversationsContainer);
     
@@ -126,11 +129,8 @@ async function injectArchivedChatsIntoDOM() {
 
         const li = document.createElement('gem-nav-list-item');
         li.className = "ng-star-inserted has-hovered-trailing-content gemini-archived-chat-item";
-        
-        // WICHTIG: Diese Attribute sorgen dafür, dass syncFullListOrder greift!
         li.dataset.testId = "conversation"; 
         li.dataset.chatId = archiveItem.id;
-        // Drag-Attribute lässt syncFullListOrder automatisch setzen!
         
         li.innerHTML = `
             <a mat-list-item="" class="mat-mdc-list-item mdc-list-item mat-mdc-tooltip-trigger gem-nav-list-item gmat-override mat-mdc-list-item-interactive mdc-list-item--with-trailing-meta lm-enabled mat-mdc-list-item-single-line mdc-list-item--with-one-line ng-star-inserted" aria-label="${archiveItem.title}" tabindex="0" draggable="false">
@@ -161,21 +161,17 @@ async function injectArchivedChatsIntoDOM() {
             e.preventDefault();
             e.stopPropagation();
             
-            // 1. Aktiven Status beim zuvor ausgewählten Chat restlos entfernen
             document.querySelectorAll('gem-nav-list-item.is-active, gem-nav-list-item a.is-active').forEach(el => {
                 el.classList.remove('is-active', 'mdc-list-item--activated');
             });
             
-            // Typografie des zuvor ausgewählten Chats auf Standard zurücksetzen
             document.querySelectorAll('gem-nav-list-item .gds-emphasized-body-s').forEach(titleSpan => {
                 titleSpan.classList.remove('gds-emphasized-body-s');
                 titleSpan.classList.add('gds-body-s');
             });
             
-            // 2. Geklickten Archiv-Chat selektieren
             linkEl.classList.add('is-active', 'mdc-list-item--activated');
             
-            // Typografie des geklickten Archiv-Chats anpassen
             const activeTitleSpan = linkEl.querySelector('.title-text');
             if (activeTitleSpan) {
                 activeTitleSpan.classList.remove('gds-body-s');
@@ -202,17 +198,37 @@ async function injectArchivedChatsIntoDOM() {
 }
 
 
-// --- 3. LADE-LOGIK FÜR DIE ANSICHT (Zerstörungsfrei) ---
+// --- 3. LADE-LOGIK FÜR DIE ANSICHT ---
 
 async function loadArchivedChatView(archiveId) {
-    const data = await new Promise(resolve => chrome.storage.local.get([`gemini_archive_data_${archiveId}`], resolve));
-    const html = data[`gemini_archive_data_${archiveId}`];
+    // 1. Zuerst im lokalen Cache suchen
+    const localData = await new Promise(resolve => chrome.storage.local.get([`gemini_archive_data_${archiveId}`], resolve));
+    let html = localData[`gemini_archive_data_${archiveId}`];
     
-    if (!html) return;
+    // 2. Falls nicht lokal vorhanden (anderes Gerät), aus Google Drive laden
+    if (!html) {
+        console.log("Archiv HTML nicht lokal gefunden. Beziehe Daten aus Google Drive...");
+        const syncData = await new Promise(resolve => chrome.storage.sync.get(['gemini_archive_index'], resolve));
+        const index = syncData.gemini_archive_index || [];
+        const archiveItem = index.find(item => item.id === archiveId);
+        
+        if (archiveItem && archiveItem.driveFileId) {
+            try {
+                html = await fetchArchiveFromDrive(archiveItem.driveFileId);
+                // Erfolgreichen Download sofort lokal cachen
+                await new Promise(resolve => chrome.storage.local.set({ [`gemini_archive_data_${archiveId}`]: html }, resolve));
+            } catch (error) {
+                console.error("Fehler beim Herunterladen aus Google Drive:", error);
+                return;
+            }
+        } else {
+            console.error("Konnte archivierten Chat nicht laden: Datei weder lokal noch im Drive-Index gefunden.");
+            return;
+        }
+    }
 
     const chatWindow = document.querySelector('chat-window');
     if (chatWindow) {
-        // Zustand global auf body setzen (wichtig für CSS-Weichen)
         document.body.classList.add('gemini-is-archive-view');
 
         Array.from(chatWindow.children).forEach(child => {
@@ -243,6 +259,9 @@ async function loadArchivedChatView(archiveId) {
     }
 }
 
+
+// --- 4. VERWALTUNGS-FUNKTIONEN ---
+
 function restoreNativeChatView() {
     // Zustand wieder entfernen
     document.body.classList.remove('gemini-is-archive-view');
@@ -260,9 +279,6 @@ function restoreNativeChatView() {
     });
 }
 
-
-// --- 4. VERWALTUNGS-FUNKTIONEN (Inline Edit & Delete) ---
-
 async function renameArchivedChat(archiveId, titleSpan, listItemEl) {
     if (titleSpan.isEditing) return;
     titleSpan.isEditing = true;
@@ -271,7 +287,7 @@ async function renameArchivedChat(archiveId, titleSpan, listItemEl) {
     const input = document.createElement('input');
     input.type = 'text';
     input.value = originalName;
-    input.className = 'folder-name-input'; // Nutzt die CSS-Klasse der Ordner
+    input.className = 'folder-name-input';
     input.style.fieldSizing = 'content';
     input.style.minWidth = '1ch';
     
@@ -295,12 +311,13 @@ async function renameArchivedChat(archiveId, titleSpan, listItemEl) {
         listItemEl.classList.remove('is-editing');
 
         if (finalName !== originalName) {
-            const data = await new Promise(resolve => chrome.storage.local.get(['gemini_archive_index'], resolve));
+            // Umbenennung wird im Sync-Storage durchgeführt
+            const data = await new Promise(resolve => chrome.storage.sync.get(['gemini_archive_index'], resolve));
             const index = data.gemini_archive_index || [];
             const item = index.find(i => i.id === archiveId);
             if (item) {
                 item.title = finalName;
-                await new Promise(resolve => chrome.storage.local.set({ gemini_archive_index: index }, resolve));
+                await new Promise(resolve => chrome.storage.sync.set({ gemini_archive_index: index }, resolve));
             }
         }
     };
@@ -320,13 +337,23 @@ async function renameArchivedChat(archiveId, titleSpan, listItemEl) {
 async function deleteArchivedChat(archiveId, listItemEl) {
     if (!confirm("Diesen archivierten Chat unwiderruflich löschen?")) return;
 
-    const data = await new Promise(resolve => chrome.storage.local.get(['gemini_archive_index'], resolve));
-    let index = data.gemini_archive_index || [];
-    index = index.filter(i => i.id !== archiveId);
-    await new Promise(resolve => chrome.storage.local.set({ gemini_archive_index: index }, resolve));
+    // 1. File-ID ermitteln und aus Google Drive löschen
+    const syncData = await new Promise(resolve => chrome.storage.sync.get(['gemini_archive_index'], resolve));
+    let index = syncData.gemini_archive_index || [];
+    const itemToDelete = index.find(i => i.id === archiveId);
+    
+    if (itemToDelete && itemToDelete.driveFileId) {
+        await deleteArchiveFromDrive(itemToDelete.driveFileId);
+    }
 
+    // 2. Aus Sync-Index entfernen
+    index = index.filter(i => i.id !== archiveId);
+    await new Promise(resolve => chrome.storage.sync.set({ gemini_archive_index: index }, resolve));
+
+    // 3. Lokalen Cache bereinigen
     await new Promise(resolve => chrome.storage.local.remove([`gemini_archive_data_${archiveId}`], resolve));
 
+    // 4. Aus Ordner-Struktur entfernen
     let structure = await getFolderStructure();
     structure.forEach(folder => {
         if (Array.isArray(folder.chatIds)) {

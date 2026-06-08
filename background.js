@@ -7,6 +7,46 @@
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // 1. Die universelle Web-Auth-Abfrage für Google Drive
+  if (request.action === "getAuthToken") {
+      
+      // HIER DEINE CLIENT-ID EINTRAGEN:
+      const clientId = "693678736924-7t94lfvkmksu0v7sii7ktt10lc4hi2lt.apps.googleusercontent.com"; 
+      
+      // Generiert die offizielle Callback-URL für deine Erweiterung (z.B. https://<id>.chromiumapp.org/)
+      const redirectUri = chrome.identity.getRedirectURL();
+      console.log("Meine exakte Redirect-URI:", redirectUri);
+      const scopes = encodeURIComponent("https://www.googleapis.com/auth/drive.appdata");
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${scopes}`;
+
+      chrome.identity.launchWebAuthFlow({
+          url: authUrl,
+          interactive: true
+      }, function(redirectUrl) {
+          if (chrome.runtime.lastError) {
+              console.error("Auth Error:", chrome.runtime.lastError);
+              sendResponse({ error: chrome.runtime.lastError.message });
+          } else if (redirectUrl) {
+              // Der Token wird im Hash der URL zurückgegeben (#access_token=...)
+              // Wir ersetzen # durch ?, um ihn bequem parsen zu können
+              const url = new URL(redirectUrl.replace('#', '?')); 
+              const token = url.searchParams.get('access_token');
+              
+              if (token) {
+                  sendResponse({ token: token });
+              } else {
+                  sendResponse({ error: "Token konnte nicht aus der URL extrahiert werden." });
+              }
+          } else {
+              sendResponse({ error: "Authentifizierung wurde abgebrochen." });
+          }
+      });
+      
+      return true; 
+  }
+
+  // 2. Deine bestehende Logik (z. B. für den TeX-Export)
   if (request.type === "exportConversation") {
     processAndDownload(request.data);
   }
